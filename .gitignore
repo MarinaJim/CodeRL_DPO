@@ -1,2 +1,5 @@
 /coderl_env/*
 /data/*
+/scripts/python_env_handlings.sh
+/models/*
+configs/__pycache__/*

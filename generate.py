@@ -14,7 +14,7 @@ from tqdm import tqdm
 import pickle as pkl 
 import numpy as np 
 from collections import Counter 
-from transformers import RobertaTokenizer, T5ForConditionalGeneration
+from transformers import T5ForConditionalGeneration, AutoTokenizer
 import datasets.utils as dsutils
 
 def generate_prompt(args, test_case_path, prompt_path, solutions_path, tokenizer, 
@@ -108,12 +108,12 @@ def main(args):
     problems = problems[start:end]
     
     # Set up model
-    tokenizer = RobertaTokenizer.from_pretrained('Salesforce/codet5-base', cache_dir=args.tokenizer_path)
-    print("Loading model from {}...".format(args.model_path))
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, cache_dir=args.tokenizer_path)
+    print("Loading model from {}...".format(args.model_name))
     if args.critic_scores:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_path, tuning_mode='critic') 
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
     else:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_path) 
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name) 
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)

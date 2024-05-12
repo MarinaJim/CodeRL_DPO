@@ -11,7 +11,8 @@ parser = argparse.ArgumentParser(description="Run a CodeT5 model to generate Pyt
 
 parser.add_argument("-t","--test_path", default="data/APPS/test/", type=str, help='Path to test samples')
 parser.add_argument("--output_path", type=str, help='Path to save output programs') 
-parser.add_argument("--model_path", type=str, help='Path of trained model') 
+parser.add_argument("--model_name", type=str, help='Name of the pretrained model') 
+parser.add_argument("--tokenizer_name", type=str, help='Name of the tokenizer') 
 parser.add_argument("--tokenizer_path", type=str, help='Path to the tokenizer') 
 parser.add_argument("--critic_scores", default=False, action='store_true', help='if model is a critic model, enable this to output critic scores')
 parser.add_argument("--binary_prediction", default=False, action='store_true', help='if model is a critic model, enable this for binary classification i.e. passed test or failed test only')

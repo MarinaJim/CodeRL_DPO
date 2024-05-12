@@ -1,4 +1,4 @@
-torch==1.9.1
+torch==2.3.0
 pyext==0.7
 deepspeed
 transformers==4.40.2
