@@ -3,3 +3,4 @@
 /scripts/python_env_handlings.sh
 /models/*
 configs/__pycache__/*
+datasets/__pycache__/*

@@ -111,9 +111,9 @@ def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, cache_dir=args.tokenizer_path)
     print("Loading model from {}...".format(args.model_name))
     if args.critic_scores:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic', cache_dir=args.model_path) 
     else:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_name) 
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name, cache_dir=args.model_path) 
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -205,6 +205,7 @@ def main(args):
                 codes_loc = os.path.join(args.output_path, f"{problem_id}.json")
                 with open(codes_loc, "w") as f:
                     json.dump(saved_codes, f)
+                    print("The codes are saved!")
 
     if args.critic_scores: 
         print("Total number of samples: {}".format(len(all_gts)))
