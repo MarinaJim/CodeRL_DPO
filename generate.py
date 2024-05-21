@@ -9,6 +9,7 @@ import os
 import pprint
 import torch
 import pdb 
+import sys
 import glob 
 from tqdm import tqdm
 import pickle as pkl 
@@ -89,7 +90,7 @@ def main(args):
 
     argsdict = vars(args)
     print(pprint.pformat(argsdict))
-
+    sys.stdout.flush()
     original_problems = glob.glob(args.test_path + '/*')
     problems = sorted(original_problems) 
 
@@ -117,13 +118,14 @@ def main(args):
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
+    sys.stdout.flush()
    
     if args.critic_scores:
         all_preds = [] 
         all_gts = [] 
         
     # main eval loop
-    for index, problem in tqdm(enumerate(problems), ncols=0, total=len(problems)):
+    for index, problem in enumerate(problems):
         
         prob_path = os.path.join(problem)
         print(f"problem path = {prob_path}")
@@ -187,7 +189,7 @@ def main(args):
 
                 num_loops = int(args.num_seqs / args.num_seqs_per_iter)
                 output_programs = [] 
-                for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
+                for i in range(num_loops):
                     output_ids = model.generate(
                         input_ids, 
                         do_sample=True, 
@@ -206,6 +208,7 @@ def main(args):
                 with open(codes_loc, "w") as f:
                     json.dump(saved_codes, f)
                     print("The codes are saved!")
+                    sys.stdout.flush()
 
     if args.critic_scores: 
         print("Total number of samples: {}".format(len(all_gts)))

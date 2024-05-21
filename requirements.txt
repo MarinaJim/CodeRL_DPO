@@ -1,5 +1,6 @@
 torch==1.9.1
 pyext==0.7
 deepspeed
-transformers
+transformers==4.17.0
 tqdm
+pandas

@@ -28,7 +28,6 @@ def eval_and_save_problems(args):
         code_file_path = args.code_path + '/{}.json'.format(problem_id)
         if os.path.exists(code_file_path):
             test_indices.append(problem_idx)
-    
     real_index = test_indices[args.index] 
     problem = problems[real_index]
     
@@ -45,21 +44,24 @@ def eval_and_save_problems(args):
         exit() 
     with open(codes_loc, "r") as file: 
         gen_codes = json.load(file)[str(real_index)]['code']
-
     test_file = os.path.join(problem, "input_output.json")
     tests = json.load(open(test_file, 'r'))
     nb_tests = len(tests['inputs'])
     if args.max_tests!=-1 and nb_tests > args.max_tests: 
         exit() 
 
+    # whether to overwrite output or not
+    """
     if os.path.isfile(args.output_path + '/{}.pkl'.format(real_index)):
         exit()
+    """
         
     print("Saving to {}".format(args.output_path + '/{}.pkl'.format(real_index)))
 
     all_results, all_errors, all_sols = [], [], []
 
-    for o_idx, o in tqdm(enumerate(gen_codes), total=len(gen_codes), ncols=0, leave=False):
+    #for o_idx, o in tqdm(enumerate(gen_codes), total=len(gen_codes), ncols=0, leave=False):
+    for o_idx, o in enumerate(gen_codes):
 
         curr_results = []
         curr_errors = []
@@ -67,7 +69,6 @@ def eval_and_save_problems(args):
         try:
             curr_results, curr_errors, _, curr_sol = run_test(prob_path=problem, test=o, debug=args.debug, 
                                           example_tests=args.example_tests)
-
             curr_errors = [(e, traceback.format_tb(e.__traceback__)) if e is not None else e for e in curr_errors]
             fixed = []
             for e in curr_results:

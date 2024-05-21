@@ -4,3 +4,6 @@
 /models/*
 configs/__pycache__/*
 datasets/__pycache__/*
+/outputs/*
+my_helpful_files/*
+utils/__pycache__/*

@@ -19,6 +19,7 @@ from datetime import datetime
 
 import transformers
 import torch
+from transformers import T5ForConditionalGeneration
 
 from datasets.apps_dataset import APPSBaseDataset
 from trainers.trainer_rl import Trainer_RL
@@ -29,13 +30,12 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 
 def run_training(args, train_data):
-    if args.model in ['codet5-base', 'codet5-large']:
+    if args.model in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
         model_path = args.model_path if args.model_path is not None else 'Salesforce/{}'.format(args.model)        
         print("Loading model from {}...".format(model_path))
-        model = transformers.T5ForConditionalGeneration.from_pretrained(
-            model_path,
-            tuning_mode=args.tuning_mode, 
-            clone_rl_head=args.clone_rl_head) 
+        sys.stdout.flush()
+        model = T5ForConditionalGeneration.from_pretrained(model_path) 
+
         
         if args.clone_rl_head:
             # Optional: clone a seperate RL head and initialize the model weights from finetuned LM head 
@@ -111,13 +111,14 @@ def get_dataset(args):
     if args.db:
         fnames = fnames[:50]
 
-    if args.model in ['codet5-base', 'codet5-large']:
+    if args.model in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
         max_tokens = 512 
         max_src_tokens = 600
     else:
         max_tokens = 1024
         max_src_tokens = -1
-    
+    print("right before loading")
+    sys.stdout.flush()
     train_data = APPSBaseDataset(
         dataroot=args.train_path, 
         problem_dirs=fnames,
@@ -128,7 +129,6 @@ def get_dataset(args):
         tuning_mode=args.tuning_mode,
         relative_returns=args.relative_returns
     )
-
     return train_data
 
 
@@ -136,15 +136,14 @@ def main(args):
 
     argsdict = vars(args)
     print(pprint.pformat(argsdict))
+    sys.stdout.flush()
 
     os.makedirs(args.save_dir, exist_ok=True)
-    
     # Load dataset 
     train_data = get_dataset(args)
 
     # Save args to file
-    json.dump(argsdict, open(os.path.join(args.save_dir, "args.json"), 'w'))
-
+    #json.dump(argsdict, open(os.path.join(args.save_dir, "args.json"), 'w'))
     # Load and train model; save model checkpoints 
     run_training(args, train_data)
 

@@ -10,6 +10,7 @@ import glob
 import logging
 import random
 import fnmatch
+import sys
 import numpy as np
 import gc
 import os
@@ -43,6 +44,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
 
         if self.model in ['codet5-base', 'codet5-large']:
             self.tokenizer = transformers.RobertaTokenizer.from_pretrained('Salesforce/codet5-base')
+        if self.model in ['codet5-large-ntp-py']:
+            self.tokenizer = transformers.AutoTokenizer.from_pretrained('Salesforce/codet5-large-ntp-py')
        
     def load_gen_samples(self, sols, answer_type, starter_code, question_str):
         samples = []
@@ -107,9 +110,9 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         gen_samples = [] 
         
         all_samples_dict = {} 
-
         print(f"Loading {len(self.problem_dirs)} problems from {self.dataroot}.")
-        for problem_name in tqdm(self.problem_dirs):           
+        sys.stdout.flush()
+        for problem_name in self.problem_dirs:
             if self.tuning_mode in ['critic']:                
                 gen_sols_fname = [os.path.join(self.dataroot, problem_name, "gen_solutions.json")]       
 
@@ -128,8 +131,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             # Read the question description
             with open(question_fname, 'r') as f:
                 question_str = f.read()
-            
-            starter_code = os.path.join(self.dataroot, problem_name, "starter_code.py")    
+
+            starter_code = os.path.join(self.dataroot, problem_name, "starter_code.py")
             if (os.path.isfile(starter_code)):
                 answer_type = "\nUse Call-Based format\n"
                 with open(starter_code, 'r') as f:
@@ -172,6 +175,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
                         self.update_error_stat_rl(info)
                         gen_samples += samples
                         samples_info += info
+
                 
         print(f"Loaded {len(all_samples)} samples from {self.dataroot}.")
         print(f"Skipped {len(skipped_problems)} problems from {self.dataroot}.")

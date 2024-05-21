@@ -1212,6 +1212,7 @@ class Trainer_RL:
         logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_train_batch_size}")
         logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
         logger.info(f"  Total optimization steps = {max_steps}")
+        sys.stdout.flush()
 
         self.state.epoch = 0
         start_time = time.time()
@@ -1281,7 +1282,8 @@ class Trainer_RL:
                 # We just need to begin an iteration to create the randomization of the sampler.
                 for _ in train_dataloader:
                     break
-
+        logger.info("Starting the epochs loop")
+        sys.stdout.flush()
         for epoch in range(epochs_trained, num_train_epochs):
             if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
                 train_dataloader.sampler.set_epoch(epoch)
@@ -1426,7 +1428,7 @@ class Trainer_RL:
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
             self._maybe_log_save_evaluate(tr_loss, tr_rl_loss, tr_acc, model, trial, epoch, ignore_keys_for_eval)
 
-            if DebugOption.TPU_METRICS_DEBUG in self.args.debug:
+            if DebugOption.TPU_METRICS_DEBUG in per_device_train_batch_size.debug:
                 if is_torch_tpu_available():
                     # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
                     xm.master_print(met.metrics_report())

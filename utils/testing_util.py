@@ -192,7 +192,8 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
         sol = "import sys\nimport time\nimport itertools\nfrom itertools import accumulate, product, permutations, combinations\nimport collections\nfrom collections import Counter, OrderedDict, deque, defaultdict, ChainMap\nfrom functools import lru_cache\nimport math\nfrom math import sqrt, sin, cos, tan, ceil, fabs, floor, gcd, exp, log, log2\nimport fractions\nfrom typing import List, Tuple\nimport numpy as np\nimport random\nimport heapq\nfrom heapq import *\n"
         if debug:
             print(f"loading test code = {datetime.now().time()}")
-        
+
+        # try to "compile" the solution for call based tasks
         if which_type == CODE_TYPE.call_based:
             sol += test
             if debug: # or True:
@@ -216,6 +217,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                 return results, errors, outputs, sol
             signal.alarm(0)
 
+        # try to "compile" the solution for std input tasks
         elif which_type == CODE_TYPE.standard_input:
             # sol
             tmp_test = test.split("\n")
@@ -265,7 +267,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
             print(f"get method = {datetime.now().time()}")
 
         #try:
-        method = getattr(tmp, method_name)  # get_attr second arg must be str
+        method = getattr(tmp, method_name)
         #except:
         if False:
             signal.alarm(0)
@@ -273,9 +275,10 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
             if debug: 
                 print(f"unable to get function error = {e}")
             return results
-    
-        #for index, inputs in enumerate(in_outs["inputs"]):
-        for index, inputs in tqdm(enumerate(in_outs["inputs"]), total=len(in_outs["inputs"]), ncols=0, leave=False): 
+        
+        correct = 0
+        #start testing the outputs
+        for index, inputs in enumerate(in_outs["inputs"]): 
             
             gc.collect()
             
@@ -309,7 +312,12 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     # ground truth sequences are not tuples
                     if isinstance(output, tuple):
                         output = list(output)
-                    
+                    """
+                    TODO tmp to counter incrementation
+                    """
+                    print_var = in_outs["outputs"][index]
+                    print(f"output: {output}, ground truth: {print_var}")
+
                     tmp_result = output == in_outs["outputs"][index]
                     if isinstance(in_outs["outputs"][index], list) and in_outs["outputs"][index]:
                         tmp_result = tmp_result or (output == in_outs["outputs"][index][0])
@@ -518,6 +526,9 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     output = set(output)
 
                 try:
+                    """
+                    TODO
+                    """
                     tmp_result = (set(frozenset(s) for s in output) == set(frozenset(s) for s in in_outs["outputs"][index]))
                 except Exception as e:
                     if debug: 
