@@ -1,10 +1,3 @@
-#
-# '''
-# Copyright (c) 2022, salesforce.com, inc.
-# All rights reserved.
-# SPDX-License-Identifier: BSD-3-Clause
-# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
-# '''#
 import json
 import numpy as np
 import os
@@ -28,6 +21,7 @@ def eval_and_save_problems(args):
         code_file_path = args.code_path + '/{}.json'.format(problem_id)
         if os.path.exists(code_file_path):
             test_indices.append(problem_idx)
+    
     real_index = test_indices[args.index] 
     problem = problems[real_index]
     
@@ -41,27 +35,29 @@ def eval_and_save_problems(args):
     
     codes_loc = args.code_path + '/{}.json'.format(real_index)
     if not os.path.isfile(codes_loc):
+        print("codes_loc is not a file")
         exit() 
     with open(codes_loc, "r") as file: 
         gen_codes = json.load(file)[str(real_index)]['code']
+
     test_file = os.path.join(problem, "input_output.json")
     tests = json.load(open(test_file, 'r'))
     nb_tests = len(tests['inputs'])
     if args.max_tests!=-1 and nb_tests > args.max_tests: 
+        print("args.max_tests!=-1 and nb_tests > args.max_tests")
         exit() 
 
-    # whether to overwrite output or not
-    """
-    if os.path.isfile(args.output_path + '/{}.pkl'.format(real_index)):
-        exit()
-    """
+    path_to_results = "args.output_path + '/{}.pkl'.format(real_index)"
+    if os.path.isfile(path_to_results):
+        print(f"file {path_to_results} already exists")
+        os.remove(path_to_results)
+        print("Removed previous file")
         
-    print("Saving to {}".format(args.output_path + '/{}.pkl'.format(real_index)))
+    print("Saving to {}".format(path_to_results))
 
     all_results, all_errors, all_sols = [], [], []
 
-    #for o_idx, o in tqdm(enumerate(gen_codes), total=len(gen_codes), ncols=0, leave=False):
-    for o_idx, o in enumerate(gen_codes):
+    for o_idx, o in tqdm(enumerate(gen_codes), total=len(gen_codes), ncols=0, leave=False):
 
         curr_results = []
         curr_errors = []
@@ -69,21 +65,14 @@ def eval_and_save_problems(args):
         try:
             curr_results, curr_errors, _, curr_sol = run_test(prob_path=problem, test=o, debug=args.debug, 
                                           example_tests=args.example_tests)
+
             curr_errors = [(e, traceback.format_tb(e.__traceback__)) if e is not None else e for e in curr_errors]
-            fixed = []
-            for e in curr_results:
-                if isinstance(e, np.ndarray):
-                    e = e.item(0)
-                if isinstance(e, np.bool_):
-                    e = bool(e)
-                fixed.append(e)
-            curr_results = fixed
 
         except Exception as e:
             print(f"test framework exception = {repr(e)}{e}\n")
             break
         finally:
-            assert isinstance(curr_results, list)
+            # assert isinstance(curr_results, list)
             all_results.append(curr_results)
             all_errors.append(curr_errors)
             all_sols.append(curr_sol)
@@ -101,7 +90,7 @@ def eval_and_save_problems(args):
     '''
 
     save_results = {real_index : {'results': all_results, 'errors': all_errors, 'sols': all_sols}} 
-    pkl.dump(save_results,  open(args.output_path + '/{}.pkl'.format(real_index), "wb"))                    
+    pkl.dump(save_results,  open(args.output_path + '/{}.json'.format(real_index), "wb"))                    
 
 def main(args):    
     argsdict = vars(args)    

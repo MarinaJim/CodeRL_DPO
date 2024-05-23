@@ -164,7 +164,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                 which_type = CODE_TYPE.call_based  # Call-based
                 method_name = in_outs["fn_name"]
     elif not example_tests:
-        return [], [], [], None 
+        return None, [], [], None 
     elif example_tests: 
         which_type = CODE_TYPE.standard_input  # assuming this method type 
         method_name = None
@@ -174,9 +174,9 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
             with open(os.path.join(root, "example_input_output.json")) as f:
                 in_outs = json.load(f)
                 if in_outs is None: 
-                    return [], [], [], None 
+                    return None, [], [], None 
         else:
-            return [], [], [], None
+            return None, [], [], None
     
     if debug:
         print(f"loaded json = {datetime.now().time()}")
@@ -184,16 +184,14 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
     #else:
     #    continue
     if test is None:
-        return [], [], [], None 
+        return None, [], [], None 
     elif test is not None:
-        results = []
         errors = []
         outputs = []
         sol = "import sys\nimport time\nimport itertools\nfrom itertools import accumulate, product, permutations, combinations\nimport collections\nfrom collections import Counter, OrderedDict, deque, defaultdict, ChainMap\nfrom functools import lru_cache\nimport math\nfrom math import sqrt, sin, cos, tan, ceil, fabs, floor, gcd, exp, log, log2\nimport fractions\nfrom typing import List, Tuple\nimport numpy as np\nimport random\nimport heapq\nfrom heapq import *\n"
         if debug:
             print(f"loading test code = {datetime.now().time()}")
-
-        # try to "compile" the solution for call based tasks
+        
         if which_type == CODE_TYPE.call_based:
             sol += test
             if debug: # or True:
@@ -211,13 +209,11 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                 signal.alarm(0)
                 if debug: 
                     print(f"type 0 compilation error = {e}")
-                results.append(-2)
                 errors.append(e)
                 outputs.append(None)
-                return results, errors, outputs, sol
+                return -2, errors, outputs, sol
             signal.alarm(0)
 
-        # try to "compile" the solution for std input tasks
         elif which_type == CODE_TYPE.standard_input:
             # sol
             tmp_test = test.split("\n")
@@ -245,8 +241,6 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
             tmp_test = new_test
 
             sol += tmp_test
-            if debug:
-                print(f"sol = {sol}")
                 # print(f"{o}") 
             method_name = "code"
             signal.alarm(timeout)
@@ -258,16 +252,15 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                 signal.alarm(0)
                 if debug: 
                     print(f"type 1 compilation error = {e}")
-                results.append(-2)
                 errors.append(e)
                 outputs.append(None)
-                return results, errors, outputs, sol 
+                return -2, errors, outputs, sol 
             signal.alarm(0)
         if debug:
             print(f"get method = {datetime.now().time()}")
 
         #try:
-        method = getattr(tmp, method_name)
+        method = getattr(tmp, method_name)  # get_attr second arg must be str
         #except:
         if False:
             signal.alarm(0)
@@ -275,13 +268,12 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
             if debug: 
                 print(f"unable to get function error = {e}")
             return results
-        
+    
         correct = 0
-        #start testing the outputs
-        for index, inputs in enumerate(in_outs["inputs"]): 
-            
+        total = len(in_outs["inputs"])
+        #for index, inputs in enumerate(in_outs["inputs"]):
+        for index, inputs in tqdm(enumerate(in_outs["inputs"]), total=len(in_outs["inputs"]), ncols=0, leave=False): 
             gc.collect()
-            
             # JSON forces dictionaries to have string keys; this undoes this (assuming a singleton list)
             try:
                 if isinstance(inputs[0], dict):
@@ -301,6 +293,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
 
             if debug:
                 print(f"time: {datetime.now().time()} testing index = {index}  inputs = {inputs}, {type(inputs)}. type = {which_type}")
+                print(f"GT output: {in_outs['outputs'][index][0]}")
             if which_type == CODE_TYPE.call_based:  # Call-based
                 signal.alarm(timeout)
                 faulthandler.enable()
@@ -312,12 +305,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     # ground truth sequences are not tuples
                     if isinstance(output, tuple):
                         output = list(output)
-                    """
-                    TODO tmp to counter incrementation
-                    """
-                    print_var = in_outs["outputs"][index]
-                    print(f"output: {output}, ground truth: {print_var}")
-
+                    
                     tmp_result = output == in_outs["outputs"][index]
                     if isinstance(in_outs["outputs"][index], list) and in_outs["outputs"][index]:
                         tmp_result = tmp_result or (output == in_outs["outputs"][index][0])
@@ -328,7 +316,8 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                             tmp_result = tmp_result or ([list(x) for x in output] == in_outs["outputs"][index][0])
                     except:
                         True
-                    results.append(tmp_result)
+                    if tmp_result:
+                        correct += 1
                     errors.append(None)
                     outputs.append(output)
                     
@@ -340,17 +329,16 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     faulthandler.disable()
                     if debug: 
                         print(f"Standard input runtime error or time limit exceeded error = {e}")
-                    results.append(-1)
                     errors.append(e)
                     outputs.append(None) 
                     
                     ## TESTING TRICK: exit loop if not pass a test case 
-                    return results, errors, outputs, sol
+                    return -1, errors, outputs, sol
                     #continue
                 faulthandler.disable()
                 signal.alarm(0)
                 if debug:
-                    print(f"outputs = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}")
+                    print(f"outputs = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs}, {type(inputs)}, {tmp_result}")
             
             elif which_type == CODE_TYPE.standard_input:  # Standard input
                 faulthandler.enable()
@@ -373,11 +361,10 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                         signal.alarm(0)
                         if debug:
                             print(f"Call-based runtime error or time limit exceeded error = {repr(e)}{e}")
-                        results.append(-1)
                         errors.append(e) 
                         outputs.append(None) 
                         ## TESTING TRICK: exit loop if not pass a test case 
-                        return results, errors, outputs, sol
+                        return -1, errors, outputs, sol
                     
                     signal.alarm(0)
                 
@@ -395,7 +382,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
 
                 if custom_compare_(output, in_outs['outputs'][index]):
                     tmp_result = True
-                    results.append(tmp_result)
+                    correct += 1
                     errors.append(None)
                     outputs.append(output)
                     continue
@@ -417,7 +404,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     pass
 
                 if tmp_result == True:  
-                    results.append(tmp_result)
+                    correct += 1
                     errors.append(None)
                     outputs.append(output)
                     continue
@@ -431,7 +418,8 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     in_outs["outputs"][index] = in_outs["outputs"][index].split("\n")
                     in_outs["outputs"][index] = list(filter(len, in_outs["outputs"][index]))
                     in_outs["outputs"][index] = list(map(lambda x:x.strip(), in_outs["outputs"][index]))
-
+                    if isinstance(output, list):
+                        output = list(filter(len, output))
                 try:
                     tmp_result = (output == [in_outs["outputs"][index]])
                     if isinstance(in_outs["outputs"][index], list):
@@ -440,9 +428,8 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     if debug: 
                         print(f"Failed check2 exception = {e}")
                     pass
-
                 if tmp_result == True:
-                    results.append(tmp_result)
+                    correct += 1
                     errors.append(None)
                     outputs.append(output)
                     continue
@@ -459,7 +446,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                         print(f"output = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}") 
                 
                 if tmp_result == True:
-                    results.append(tmp_result)
+                    correct += 1
                     errors.append(None)
                     outputs.append(output)
                     continue
@@ -472,13 +459,16 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     if debug: 
                         print(f"Failed check3 exception = {e}")
                     pass
-
                 try:
+                    output_float = [float(e) for e in output]
+                    gt_float = [float(e) for e in in_outs['outputs'][index]]
+                    tmp_result = tmp_result or ((len(output_float) == len(gt_float)) and np.allclose(output_float, gt_float))
                     output_float = [float(e) for e in output]
                     gt_float = [float(e) for e in in_outs['outputs'][index]]
                     tmp_result = tmp_result or ((len(output_float) == len(gt_float)) and np.allclose(output_float, gt_float))
                 except Exception as e:
                     pass
+
                 try:
                     if isinstance(output[0], list):
                         output_float = [float(e) for e in output[0]]
@@ -488,7 +478,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     pass
 
                 if tmp_result == True:
-                    results.append(tmp_result)
+                    correct += 1
                     errors.append(None)
                     outputs.append(output_float)
                     continue
@@ -508,7 +498,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     continue
 
                 if tmp_result == True:
-                    results.append(tmp_result)
+                    correct += 1
                     errors.append(None)
                     outputs.append(output)
                     continue 
@@ -526,9 +516,6 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     output = set(output)
 
                 try:
-                    """
-                    TODO
-                    """
                     tmp_result = (set(frozenset(s) for s in output) == set(frozenset(s) for s in in_outs["outputs"][index]))
                 except Exception as e:
                     if debug: 
@@ -544,13 +531,11 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                 if tmp_result == True and debug:
                     print("PASSED")
  
-                results.append(tmp_result)
+                if tmp_result:
+                    correct += 1
                 errors.append(None)
                 outputs.append(output)
             
-                if tmp_result != True:
-                    ## TESTING TRICK: exit loop if not pass a test case 
-                    return results, errors, outputs, sol
                 
                 if debug:
                     nl = "\n"
@@ -559,8 +544,8 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     else:
                         print(f"output = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}") 
 
-
-    return results, errors, outputs, sol
+        correct_percentage = correct / total
+    return correct_percentage, errors, outputs, sol
 
 def custom_compare_(output, ground_truth):
     
