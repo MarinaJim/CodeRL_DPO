@@ -18,6 +18,7 @@ from collections import Counter
 from transformers import T5ForConditionalGeneration, AutoTokenizer
 import datasets.utils as dsutils
 
+
 def generate_prompt(args, test_case_path, prompt_path, solutions_path, tokenizer, 
                     starter_path=None):
     
@@ -65,7 +66,7 @@ def generate_critic_inputs(args, test_case_path, prompt_path, solutions_path, to
     gt_errors = [] 
     all_codes = [] 
     
-    for sol_index, solution in enumerate(solutions):        
+    for solution in solutions:        
         if gt_solutions: 
             solution_str = dsutils.reindent_code(solution)
         else:
@@ -90,7 +91,6 @@ def main(args):
 
     argsdict = vars(args)
     print(pprint.pformat(argsdict))
-    sys.stdout.flush()
     original_problems = glob.glob(args.test_path + '/*')
     problems = sorted(original_problems) 
 
@@ -98,34 +98,42 @@ def main(args):
         os.makedirs(args.output_path, exist_ok=True)
     print("Saving results to {}".format(args.output_path))
 
-    if args.start > len(problems) or args.start < 0:
-        print(f"start index {args.start} > number of problems {len(problems)}")
-        return
-    start = args.start
-    if args.end is None or args.end > len(problems):
-        end = len(problems)
+    if args.path_to_problems is not None:
+        with open(args.path_to_problems, 'r') as f:
+            problem_ids = json.loads(f.read())
+        problems = [os.path.join(args.test_path, str(pid)) for pid in problem_ids]
+
     else:
-        end = args.end
-    problems = problems[start:end]
-    
+        if args.start > len(problems) or args.start < 0:
+            print(f"start index {args.start} > number of problems {len(problems)}")
+            return
+        start = args.start
+        if args.end is None or args.end > len(problems):
+            end = len(problems)
+        else:
+            end = args.end
+        problems = problems[start:end]
+
+    print(problems[:5])
+
     # Set up model
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, cache_dir=args.tokenizer_path)
     print("Loading model from {}...".format(args.model_name))
     if args.critic_scores:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic', cache_dir=args.model_path) 
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
     else:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_name, cache_dir=args.model_path) 
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name) 
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    sys.stdout.flush()
+    print(device)
    
     if args.critic_scores:
         all_preds = [] 
         all_gts = [] 
         
     # main eval loop
-    for index, problem in enumerate(problems):
+    for index, problem in tqdm(enumerate(problems), ncols=0, total=len(problems)):
         
         prob_path = os.path.join(problem)
         print(f"problem path = {prob_path}")
@@ -189,7 +197,7 @@ def main(args):
 
                 num_loops = int(args.num_seqs / args.num_seqs_per_iter)
                 output_programs = [] 
-                for i in range(num_loops):
+                for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
                     output_ids = model.generate(
                         input_ids, 
                         do_sample=True, 
@@ -208,7 +216,6 @@ def main(args):
                 with open(codes_loc, "w") as f:
                     json.dump(saved_codes, f)
                     print("The codes are saved!")
-                    sys.stdout.flush()
 
     if args.critic_scores: 
         print("Total number of samples: {}".format(len(all_gts)))

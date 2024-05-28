@@ -16,7 +16,9 @@ parser.add_argument('--save_dir', default=None, type=str, help='path to save tra
 # Dataloading
 parser.add_argument('--train-path', default='data/APPS/train/', type=str, help='path to training data')
 parser.add_argument('--sample-mode', default='uniform_sol', help='sampling output programs following a uniform distribution by program population')
-
+parser.add_argument('--samples_per_question', default=5, help='Number of samples per problem')
+parser.add_argument('--n_questions', default=1000, help='Number of problems to be sampled from')
+parser.add_argument('--path_to_dpo_problems', default=None, help='indexes of problems that will be used in DPO')
 # Model
 parser.add_argument('--tuning_mode', default='critic', type=str, help='tuning mode for training LMs')
 parser.add_argument('--relative_returns', default=False, action='store_true', help='use relative returns against a baseline during RL')

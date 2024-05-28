@@ -26,7 +26,7 @@ import datasets.utils as dsutils
 
 class APPSBaseDataset(torch.utils.data.Dataset):
     def __init__(self, dataroot, problem_dirs, model, max_tokens, sample_mode, 
-                 tuning_mode, max_src_tokens, relative_returns):
+                 tuning_mode, max_src_tokens, relative_returns, n_questions, samples_per_question, path_to_dpo_problems):
         self.dataroot = dataroot
         self.problem_dirs = problem_dirs 
 
@@ -40,13 +40,18 @@ class APPSBaseDataset(torch.utils.data.Dataset):
 
         self.samples = []           
         self.all_error_types, self.all_error_subtypes, self.all_baseline_error_types = [], [], []
-        self.initialize()
-
+        dpo_problems = self.initialize(n_questions=n_questions, samples_per_question=samples_per_question)
+        self.save_dpo_problems(dpo_problems=dpo_problems, path=path_to_dpo_problems)
         if self.model in ['codet5-base', 'codet5-large']:
             self.tokenizer = transformers.RobertaTokenizer.from_pretrained('Salesforce/codet5-base')
         elif self.model in ['codet5-large-ntp-py']:
             self.tokenizer = transformers.AutoTokenizer.from_pretrained('Salesforce/codet5-large-ntp-py')
        
+    def save_dpo_problems(self, dpo_problems, path):
+        with open(path, "w") as file:
+            json.dump(dpo_problems, file)
+        print(f"Saved DPO problem indexes into {path}!")
+
     def load_gen_samples(self, sols, answer_type, starter_code, question_str):
         samples = []
         info = []
@@ -73,10 +78,12 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             
         return samples, info 
      
-    def load_gt_samples(self, sols, answer_type, starter_code, question_str):
+    def load_gt_samples(self, sols, answer_type, starter_code, question_str, samples_per_question):
         samples = []
-        
+        samples_per_question = min(samples_per_question, len(sols))
+        sols = random.choices(sols, k=samples_per_question)
         for sol_str in sols:
+            sol_str = random.choice(sols)
             sol_str = dsutils.reindent_code(sol_str)
             sample = (question_str, starter_code, sol_str, answer_type)
             samples.append(sample)
@@ -103,27 +110,23 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             self.all_error_types.append(error_type)
             self.all_baseline_error_types.append(baseline_error_type) 
     
-    def initialize(self):
+    def initialize(self, n_questions, samples_per_question):
         all_samples = []
         skipped_problems = []
         samples_info = [] 
         gen_samples = [] 
         
         all_samples_dict = {} 
-        print(f"Loading {len(self.problem_dirs)} problems from {self.dataroot}.")
         sys.stdout.flush()
-        for problem_name in self.problem_dirs:
-            if self.tuning_mode in ['critic']:                
-                gen_sols_fname = [os.path.join(self.dataroot, problem_name, "gen_solutions.json")]       
+        random.seed(80945948901)
+        warmup_problems = random.choices(self.problem_dirs, k=n_questions)
+        print(f"Loading {len(warmup_problems)} problems from {self.dataroot}.")
 
-            elif self.tuning_mode in ['rl']:
-                gen_sols_fname = [os.path.join(self.dataroot, problem_name, "gen_solutions_critic_scores.pkl")]   
-                
-                if self.relative_returns: 
-                    baseline_fname = os.path.join(self.dataroot, problem_name, "baseline_solutions.json")
-                
+        dpo_problems = [problem for problem in self.problem_dirs if problem not in warmup_problems]
+
+        for problem_name in warmup_problems:
             question_fname = os.path.join(self.dataroot, problem_name, "question.txt")
-            sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")            
+            sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")
             if (not os.path.isfile(question_fname)) or (not os.path.isfile(sols_fname)):
                 skipped_problems.append(problem_name)
                 continue
@@ -144,54 +147,16 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             sols_str_list = json.load(open(sols_fname, 'r'))
             # get ground truth samples from the list of solutions, answer type, started code and question
             # one sample here is one answer to the question
-            gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
+            gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str, samples_per_question)
             all_samples += gt_samples 
             
             # Read all the solutions
-            if self.tuning_mode in ['critic']: 
-                for fname in gen_sols_fname:
-                    if os.path.exists(fname):
-                        gen_sols = json.load(open(fname, 'r'))
-                        samples, info = self.load_gen_samples(gen_sols, answer_type, starter_code, question_str) 
-                        self.update_error_stat(info)
-                        gen_samples += samples
-                        samples_info += info
-                
-                # also include ground-truth samples to train critic model; assume success test outcomes 
-                gen_samples += gt_samples
-                info = [self.get_gt_info() for s in gt_samples]
-                samples_info += info
-                
-            elif self.tuning_mode in ['rl']: 
-                
-                if self.relative_returns:
-                    baseline_sample = json.load(open(baseline_fname, 'r'))
-                    baseline_error_type = self.get_baseline_error_type(baseline_sample)
-                else:
-                    baseline_error_type = -1 
-
-                for fname in gen_sols_fname: 
-                    if os.path.exists(fname):
-                        gen_sols = pkl.load(open(fname, 'rb'))
-                        samples, info = self.load_rl_samples(gen_sols, baseline_error_type) 
-                        self.update_error_stat_rl(info)
-                        gen_samples += samples
-                        samples_info += info
-
+           
         print(f"Samples:\n{all_samples[:5]}")
         print(f"Loaded {len(all_samples)} samples from {self.dataroot}.")
         print(f"Skipped {len(skipped_problems)} problems from {self.dataroot}.")
         
-        if self.tuning_mode in ['critic', 'rl']:
-            if len(gen_samples) != len(samples_info): pdb.set_trace()
-            print(f"Loaded {len(gen_samples)} generated samples from {self.dataroot}.")
-            print("Error type distribution: {}".format(sorted(Counter(self.all_error_types).items())))
-            if self.tuning_mode == 'critic':
-                print("Error subtype distribution: {}".format(sorted(Counter(self.all_error_subtypes).items())))
-            else:
-                print("Baseline error distribution: {}".format(sorted(Counter(self.all_baseline_error_types).items())))
-        else:
-            print(f"Loaded {len(all_samples)} samples from {self.dataroot}.")
+        print(f"Loaded {len(all_samples)} samples from {self.dataroot}.")
             
         self.samples = all_samples
         self.samples_info = samples_info 
@@ -210,6 +175,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             sample_rewards = np.array([dsutils.get_reward_from_error_type(e) for e in self.all_error_types])
             baseline_rewards = np.array([dsutils.get_reward_from_error_type(e) for e in self.all_baseline_error_types])
             print("Relative returns distribution: {}".format(sorted(Counter(sample_rewards-baseline_rewards).items())))
+
+        return dpo_problems
             
     def __len__(self):
         if self.tuning_mode in ['critic', 'rl']:
@@ -317,6 +284,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             input_ids.extend(question_token_ids)
              
             answer_token_ids = self.tokenizer.encode(a_str, verbose=False)
+
             if self.model not in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
                 label_ids.extend([-100] * len(question_token_ids))
                 answer_token_ids.append(self.tokenizer.eos_token_id)

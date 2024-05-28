@@ -90,7 +90,7 @@ def eval_and_save_problems(args):
     '''
 
     save_results = {real_index : {'results': all_results, 'errors': all_errors, 'sols': all_sols}} 
-    pkl.dump(save_results,  open(args.output_path + '/{}.json'.format(real_index), "wb"))                    
+    pkl.dump(save_results,  open(args.output_path + '/{}.pkl'.format(real_index), "wb"))                    
 
 def main(args):    
     argsdict = vars(args)    

@@ -293,13 +293,10 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
 
             if debug:
                 print(f"time: {datetime.now().time()} testing index = {index}  inputs = {inputs}, {type(inputs)}. type = {which_type}")
-                print(f"GT output: {in_outs['outputs'][index][0]}")
             if which_type == CODE_TYPE.call_based:  # Call-based
                 signal.alarm(timeout)
                 faulthandler.enable()
                 try:
-                    # print("------------")
-                    # print(inputs)
                     output = method(*inputs)
 
                     # ground truth sequences are not tuples
@@ -418,8 +415,8 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     in_outs["outputs"][index] = in_outs["outputs"][index].split("\n")
                     in_outs["outputs"][index] = list(filter(len, in_outs["outputs"][index]))
                     in_outs["outputs"][index] = list(map(lambda x:x.strip(), in_outs["outputs"][index]))
-                    if isinstance(output, list):
-                        output = list(filter(len, output))
+                    #if isinstance(output, list):
+                        #output = list(filter(len, output))
                 try:
                     tmp_result = (output == [in_outs["outputs"][index]])
                     if isinstance(in_outs["outputs"][index], list):
