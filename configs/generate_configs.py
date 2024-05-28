@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description="Run a CodeT5 model to generate Pyt
 parser.add_argument("-t","--test_path", default="data/APPS/test/", type=str, help='Path to test samples')
 parser.add_argument("--output_path", type=str, help='Path to save output programs') 
 parser.add_argument("--model_name", type=str, help='Name of the pretrained model') 
-parser.add_argument("--model_path", type=str, help="Path to cached model")
+#parser.add_argument("--model_path", default=None, type=str, help="Path to cached model")
 parser.add_argument("--tokenizer_name", type=str, help='Name of the tokenizer') 
 parser.add_argument("--tokenizer_path", type=str, help='Path to cached tokenizer') 
 parser.add_argument("--critic_scores", default=False, action='store_true', help='if model is a critic model, enable this to output critic scores')
@@ -28,6 +28,6 @@ parser.add_argument('--gt_solutions', default=False, action='store_true', help='
 parser.add_argument("--temperature", default=0.6, type=float, help='temperature for sampling tokens') 
 parser.add_argument("-s","--start", default=0, type=int, help='start index of test samples')
 parser.add_argument("-e","--end", default=10000, type=int, help='end index of test samples')
-
+parser.add_argument("--path_to_problems", default=None, type=str, help='Path to file containing DPO problem indexes')
 args = parser.parse_args()
 

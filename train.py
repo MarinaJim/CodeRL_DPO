@@ -107,7 +107,7 @@ def get_dataset(args):
     
     fnames = os.listdir(args.train_path) 
     
-    # train in debugging mode with small data split 
+    # train in debugging modfie with small data split 
     if args.db:
         fnames = fnames[:50]
 
@@ -127,7 +127,10 @@ def get_dataset(args):
         max_src_tokens=max_src_tokens,
         sample_mode=args.sample_mode,
         tuning_mode=args.tuning_mode,
-        relative_returns=args.relative_returns
+        relative_returns=args.relative_returns,
+        n_questions=args.n_questions,
+        samples_per_question=args.samples_per_question,
+        path_to_dpo_problems = args.path_to_dpo_problems
     )
     return train_data
 
