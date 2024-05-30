@@ -6,19 +6,19 @@
 # You can shorten this example script and adapt to create your own one.
 #
 # Give your job a proper name
-#SBATCH --job-name=sm_run_unit_tests
+#SBATCH --job-name=sm_dummy_script
 #
 # How many cpus to request
 #SBATCH --cpus-per-task=10
 #
 # How much memory to request
-#SBATCH --mem=16GB
+#SBATCH --mem=4GB
 #
 # How many gpus to request
 #SBATCH --gres=gpu:1
 #
 # Limit runtime d-hh:mm:ss - here limited to 1min
-#SBATCH --time=0-05:00:00
+#SBATCH --time=0-00:15:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
 #SBATCH --partition=gpu-athene
@@ -30,37 +30,8 @@
 ###SBATCH --qos=gpu
 #
 # Define standard output files - make sure those files exist
-#SBATCH --output=/storage/athene/work/sakharova/run_unit_tests.output
-#SBATCH --error=/storage/athene/work/sakharova/run_unit_tests.error
+#SBATCH --output=/storage/athene/work/sakharova/helpful_script.output
+#SBATCH --error=/storage/athene/work/sakharova/helpful_script.error
 
-code_path=/storage/athene/work/sakharova/CodeRL_DPO/outputs/codes/
-output_path=/storage/athene/work/sakharova/CodeRL_DPO/outputs/test_results
-test_path=/storage/athene/work/sakharova/CodeRL_DPO/data/APPS/test
-
-example_tests=0 # 0: run hidden unit tests; 1: run example unit tests 
-start=0
-end=50
-threads=10
-
-if [ ! -d $output_path ] 
-then
-    echo "Directory DOES NOT exists." 
-    mkdir $output_path
-fi
-
-index=0
-for (( i=$start;i<$end;i++ )) ; do 
-    echo 'testing sample index #' ${i}
-    ((index++))   
-    (
-    python test_one_solution.py \
-        --code_path ${code_path} \
-        --output_path ${output_path} \
-        --test_path $test_path \
-        --example_tests $example_tests \
-        --i $i
-    ) &        
-    if (( $index % $threads == 0 )); then wait; fi 
-done 
-
-wait 
+python my_helpful_files/test_model_output.py
+exit 0

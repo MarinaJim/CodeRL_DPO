@@ -1,4 +1,11 @@
-#!/bin/bash
+"""
+Creates a bash scripts to run unit tests for all solutions in the outputs/codes folder.
+"""
+import os
+import sys
+import json
+
+script = """#!/bin/bash
 #
 # The "#" before the "SBATCH" parameters do not comment it out! Use triple "###" to comment something out.
 # Check our wiki for valid QOS / PARTITION / ACCOUNT combinations and resource limits!
@@ -6,7 +13,11 @@
 # You can shorten this example script and adapt to create your own one.
 #
 # Give your job a proper name
-#SBATCH --job-name=sm_run_unit_tests
+#SBATCH --job-name=sakharova_testscript
+#
+# Where to send job start / end messages to - comment in to use!
+###SBATCH --mail-user=marina.sakharova@stud.tu-darmstadt.de
+#SBATCH --mail-type=ALL
 #
 # How many cpus to request
 #SBATCH --cpus-per-task=10
@@ -35,32 +46,38 @@
 
 code_path=/storage/athene/work/sakharova/CodeRL_DPO/outputs/codes/
 output_path=/storage/athene/work/sakharova/CodeRL_DPO/outputs/test_results
-test_path=/storage/athene/work/sakharova/CodeRL_DPO/data/APPS/test
-
-example_tests=0 # 0: run hidden unit tests; 1: run example unit tests 
-start=0
-end=50
+test_path=/storage/athene/work/sakharova/CodeRL_DPO/data/APPS/train
+example_tests=0
 threads=10
+"""
+
+dpo_indexes =[index.replace(".json", "") for index in os.listdir("outputs/codes")]
+dpo_indexes_str = "( " + str.join(" ", [str(i) for i in dpo_indexes]) + ")"
+script += f"""
 
 if [ ! -d $output_path ] 
 then
     echo "Directory DOES NOT exists." 
     mkdir $output_path
 fi
-
+dpo_indexes={dpo_indexes_str}
 index=0
-for (( i=$start;i<$end;i++ )) ; do 
-    echo 'testing sample index #' ${i}
+for i in "${{!dpo_indexes[@]}}"; do 
+    echo 'testing sample index #' ${{i\}}
     ((index++))   
     (
-    python test_one_solution.py \
-        --code_path ${code_path} \
-        --output_path ${output_path} \
-        --test_path $test_path \
-        --example_tests $example_tests \
+    python test_one_solution.py \\
+        --code_path ${{code_path\}} \\
+        --output_path $\{{output_path\}} \\
+        --test_path $test_path \\
+        --example_tests $example_tests \\
         --i $i
     ) &        
     if (( $index % $threads == 0 )); then wait; fi 
 done 
 
 wait 
+
+"""
+with open("/storage/athene/work/sakharova/CodeRL_DPO/scripts/run_unit_tests_train.sh", "w") as f:
+    f.write(script)
