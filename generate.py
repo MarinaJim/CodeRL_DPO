@@ -15,7 +15,7 @@ from tqdm import tqdm
 import pickle as pkl 
 import numpy as np 
 from collections import Counter 
-from transformers import T5ForConditionalGeneration, AutoTokenizer
+from transformers import T5ForConditionalGeneration, RobertaTokenizer
 import datasets.utils as dsutils
 
 
@@ -117,7 +117,7 @@ def main(args):
     print(problems[:5])
 
     # Set up model
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, cache_dir=args.tokenizer_path)
+    tokenizer = RobertaTokenizer.from_pretrained('Salesforce/codet5-base')
     print("Loading model from {}...".format(args.model_name))
     if args.critic_scores:
         model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 

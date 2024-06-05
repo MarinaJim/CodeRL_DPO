@@ -128,9 +128,6 @@ def get_dataset(args):
         sample_mode=args.sample_mode,
         tuning_mode=args.tuning_mode,
         relative_returns=args.relative_returns,
-        n_questions=args.n_questions,
-        samples_per_question=args.samples_per_question,
-        path_to_dpo_problems = args.path_to_dpo_problems
     )
     return train_data
 

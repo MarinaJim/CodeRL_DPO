@@ -63,12 +63,12 @@ fi
 dpo_indexes={dpo_indexes_str}
 index=0
 for i in "${{!dpo_indexes[@]}}"; do 
-    echo 'testing sample index #' ${{i\}}
+    echo 'testing sample index #' ${{i}}
     ((index++))   
     (
     python test_one_solution.py \\
         --code_path ${{code_path\}} \\
-        --output_path $\{{output_path\}} \\
+        --output_path ${{output_path}} \\
         --test_path $test_path \\
         --example_tests $example_tests \\
         --i $i

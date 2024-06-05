@@ -26,7 +26,7 @@ import datasets.utils as dsutils
 
 class APPSBaseDataset(torch.utils.data.Dataset):
     def __init__(self, dataroot, problem_dirs, model, max_tokens, sample_mode, 
-                 tuning_mode, max_src_tokens, relative_returns, n_questions, samples_per_question, path_to_dpo_problems):
+                 tuning_mode, max_src_tokens, relative_returns):
         self.dataroot = dataroot
         self.problem_dirs = problem_dirs 
 
@@ -40,17 +40,9 @@ class APPSBaseDataset(torch.utils.data.Dataset):
 
         self.samples = []           
         self.all_error_types, self.all_error_subtypes, self.all_baseline_error_types = [], [], []
-        dpo_problems = self.initialize(n_questions=n_questions, samples_per_question=samples_per_question)
-        self.save_dpo_problems(dpo_problems=dpo_problems, path=path_to_dpo_problems)
-        if self.model in ['codet5-base', 'codet5-large']:
+        self.initialize()
+        if self.model in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
             self.tokenizer = transformers.RobertaTokenizer.from_pretrained('Salesforce/codet5-base')
-        elif self.model in ['codet5-large-ntp-py']:
-            self.tokenizer = transformers.AutoTokenizer.from_pretrained('Salesforce/codet5-large-ntp-py')
-       
-    def save_dpo_problems(self, dpo_problems, path):
-        with open(path, "w") as file:
-            json.dump(dpo_problems, file)
-        print(f"Saved DPO problem indexes into {path}!")
 
     def load_gen_samples(self, sols, answer_type, starter_code, question_str):
         samples = []
@@ -78,12 +70,9 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             
         return samples, info 
      
-    def load_gt_samples(self, sols, answer_type, starter_code, question_str, samples_per_question):
+    def load_gt_samples(self, sols, answer_type, starter_code, question_str):
         samples = []
-        samples_per_question = min(samples_per_question, len(sols))
-        sols = random.choices(sols, k=samples_per_question)
         for sol_str in sols:
-            sol_str = random.choice(sols)
             sol_str = dsutils.reindent_code(sol_str)
             sample = (question_str, starter_code, sol_str, answer_type)
             samples.append(sample)
@@ -110,21 +99,16 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             self.all_error_types.append(error_type)
             self.all_baseline_error_types.append(baseline_error_type) 
     
-    def initialize(self, n_questions, samples_per_question):
+    def initialize(self):
         all_samples = []
         skipped_problems = []
         samples_info = [] 
         gen_samples = [] 
         
         all_samples_dict = {} 
-        sys.stdout.flush()
-        random.seed(80945948901)
-        warmup_problems = random.choices(self.problem_dirs, k=n_questions)
-        print(f"Loading {len(warmup_problems)} problems from {self.dataroot}.")
+        print(f"Loading {len(self.problem_dirs)} problems from {self.dataroot}.")
 
-        dpo_problems = [problem for problem in self.problem_dirs if problem not in warmup_problems]
-
-        for problem_name in warmup_problems:
+        for problem_name in tqdm(self.problem_dirs):
             question_fname = os.path.join(self.dataroot, problem_name, "question.txt")
             sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")
             if (not os.path.isfile(question_fname)) or (not os.path.isfile(sols_fname)):
@@ -147,7 +131,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             sols_str_list = json.load(open(sols_fname, 'r'))
             # get ground truth samples from the list of solutions, answer type, started code and question
             # one sample here is one answer to the question
-            gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str, samples_per_question)
+            gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
             all_samples += gt_samples 
             
             # Read all the solutions
@@ -176,7 +160,6 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             baseline_rewards = np.array([dsutils.get_reward_from_error_type(e) for e in self.all_baseline_error_types])
             print("Relative returns distribution: {}".format(sorted(Counter(sample_rewards-baseline_rewards).items())))
 
-        return dpo_problems
             
     def __len__(self):
         if self.tuning_mode in ['critic', 'rl']:
