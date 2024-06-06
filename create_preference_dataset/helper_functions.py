@@ -1,16 +1,17 @@
 import os
+import sys
+import json
 
 def get_call_based(folder):
+    sys.set_int_max_str_digits(0)
     call_based = []
     for task in os.listdir(folder):
-        if "starter_code.py" not in os.listdir(folder + "/" + task):
+        if "input_output.json" not in os.listdir(folder + "/" + task):
             continue
-        with open(folder + "/" + task + "/starter_code.py", "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                if "def " in line:
-                    call_based.append(task)
-                    break
+        with open(folder + "/" + task + "/input_output.json", "r") as f:
+            in_outs = json.load(f)
+            if in_outs.get("fn_name") is not None:
+                call_based.append(task)
     return call_based
 
 def get_class_tasks(tasks, folder="data/APPS/train"):
@@ -56,11 +57,39 @@ def get_solution_class(tasks):
     solution_classes = []
     for task in tasks:
         code = os.path.join("data/APPS/train", str(task), "starter_code.py")
-        n_def = 0
+        n_classes = 0
         with open(code, "r") as f:
             lines = f.readlines()
             for line in lines:
-                if "class Solution" in line:
+                if "class" in line:
+                    n_classes += 1
+                    class_name = line.split(" ")[1]
+            if n_classes > 1:
+                if "Solution" in class_name:
                     solution_classes.append(task)
-                    break
     return solution_classes
+
+def get_number_inputs(tasks, folder="data/APPS/train"):
+    """
+    For each call-based problem in the folder, returns number of inputs in the file input_output.json.
+    """
+    sys.set_int_max_str_digits(0)
+    ns_inputs = {}
+    for task in tasks:
+        # retrieve the number of outputs
+        io_path = folder + "/" + task + "/input_output.json"
+        if os.path.exists(io_path):
+            with open(io_path, "r") as f:
+                inputs = json.load(f)
+                inputs = inputs["inputs"]
+                if len(inputs) < 5:
+                    ns_inputs[task] = len(inputs)
+
+                elif len(inputs) >=5 and len(inputs) <= 10:
+                    ns_inputs[task] = "5-10"
+
+                else:
+                    ns_inputs[task] = "> 10"
+        else:
+            ns_inputs[task] = 0
+    return ns_inputs
