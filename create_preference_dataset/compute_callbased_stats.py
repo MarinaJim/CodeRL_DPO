@@ -5,7 +5,7 @@ import os
 import json
 from collections import Counter
 import sys
-from helper_functions import get_call_based, get_class_tasks, get_number_inputs, get_one_class_one_def, get_solution_class
+from helper_functions import get_call_based, get_class_tasks, get_number_inputs, get_one_class_one_def, get_solution_class, get_tasks_with_generated_inputs
 
 def compute_percentage(tasks, folder):
     total = os.listdir(folder)
@@ -52,6 +52,12 @@ def main():
     print(f"- {len(oneclassonedef)} tasks with one class and one function")
     other = [task for task in class_tasks if task not in oneclassonedef]
     print(f"- {len(other)} other tasks. These will not be considered at the moment")    
+    print()
+
+    print("---After applying crosshair---")
+    folder = "data/APPS/preference"
+    successful = get_tasks_with_generated_inputs(folder)
+    print(f"For {len(successful) / len(os.listdir(folder))}% of tasks the input could be generated")
 
 if __name__ == "__main__":
     main()

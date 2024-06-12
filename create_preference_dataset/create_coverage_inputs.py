@@ -1,35 +1,42 @@
 import os
 import json
+import re
+import shutil
 from helper_functions import (get_call_based, 
                               get_class_tasks, 
                               get_one_class_one_def, 
                               get_solution_class, 
                               get_number_inputs)
 
+REPLACEMENT_PATTERN = r'\bdef\s+\w+\(.*?\):'
+
 def save_1c1d_annotated(one_class_one_def_tasks):
     for task in one_class_one_def_tasks:
+        # get a solution code
         solution_path = os.path.join("data/APPS/train", str(task), "solutions.json")
         with open(solution_path, "r") as f:
             solutions = json.load(f)
         solution = solutions[0]
         solution = solution.split("\n")
+
+        # get method head from the starter code
         starter_code_path = os.path.join("data/APPS/train", str(task), "starter_code.py")
         with open(starter_code_path, "r") as f:
             starter_code = f.readlines()
             for line in starter_code:
                 if "def " in line:
-                    method_head = line
+                    method_head = line.strip()
                     break
         for index, line in enumerate(solution):
             if "def " in line:
-                solution[index] = method_head
+                solution[index] = re.sub(REPLACEMENT_PATTERN, method_head, solution[index])
                 break
         
         path_to_annotated_solution = os.path.join(path_to_preference, str(task))
         if not os.path.exists(path_to_annotated_solution):
             os.mkdir(path_to_annotated_solution)
         
-        code = ""
+        code = "import sys\nimport time\nimport itertools\nfrom itertools import accumulate, product, permutations, combinations\nimport collections\nfrom collections import Counter, OrderedDict, deque, defaultdict, ChainMap\nfrom functools import lru_cache\nimport math\nfrom math import sqrt, sin, cos, tan, ceil, fabs, floor, gcd, exp, log, log2\nimport fractions\nfrom typing import List, Tuple\nimport numpy as np\nimport random\nimport heapq\nfrom heapq import *\n\n"
         for line in solution:
             code += line + "\n"
 
@@ -97,5 +104,9 @@ non_class_tasks = [task for task in call_based_tasks if task not in class_tasks]
 n_inputs_not_class_tasks = get_number_inputs(non_class_tasks)
 non_class_tasks = [task for task in non_class_tasks if n_inputs_not_class_tasks[task] != 0]
 
+#one_class_one_def_tasks = ["0205", "0201"]
+#for task in one_class_one_def_tasks:
+#    shutil.rmtree(os.path.join(path_to_preference, str(task)), ignore_errors=True)
+    
 save_1c1d_annotated(one_class_one_def_tasks)
-save_non_class_annotated(non_class_tasks)
+#save_non_class_annotated(non_class_tasks)

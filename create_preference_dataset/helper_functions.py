@@ -36,18 +36,23 @@ def get_one_class_one_def(tasks):
     """
     one_class_one_def = []
     for task in tasks:
-        code = os.path.join("data/APPS/train", str(task), "starter_code.py")
-        n_def = 0
-        n_class = 0
+        code = os.path.join("data/APPS/train", str(task), "solutions.json")
         with open(code, "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                if "class " in line:
-                    n_class += 1
-                if "def " in line:
-                    n_def += 1
-            if n_class == 1 and n_def == 1:
-                one_class_one_def.append(task)
+            solutions = json.load(f)
+            for solution in solutions:
+                n_class = 0
+                n_def = 0
+                for line in solution.split("\n"):
+                    if "class " in line:
+                        n_class += 1
+                    if "def " in line:
+                        n_def += 1
+                if n_class == 1 and n_def == 1:
+                    print(task)
+                    print(n_class)
+                    print(n_def)
+                    one_class_one_def.append(task)
+                    break
     return one_class_one_def
 
 def get_solution_class(tasks):
@@ -93,3 +98,12 @@ def get_number_inputs(tasks, folder="data/APPS/train"):
         else:
             ns_inputs[task] = 0
     return ns_inputs
+
+def get_tasks_with_generated_inputs(folder):
+    successful_tasks = []
+    all_tasks = os.listdir(folder)
+    for task in all_tasks:
+        path = os.path.join(folder, task, "parameters.json")
+        if os.path.exists(path):
+            successful_tasks.append(task)
+    return successful_tasks
