@@ -4,17 +4,18 @@ import os
 import json
 import re
 from tqdm import tqdm
-import logging
+import shutil
 from ast import literal_eval
-print("Starting python script")
-tasks = os.listdir("data/APPS/preference")
+
+path_to_preference = "data/APPS/preference"
+tasks = os.listdir(path_to_preference)
 tasks = sorted(tasks)
 print("Start running crosshair")
 print(tasks[:5])
 for task in tqdm(tasks, total=len(tasks)):
     print(task)
     all_params = []
-    path_to_folder = os.path.join("data/APPS/preference", task)
+    path_to_folder = os.path.join(path_to_preference, task)
     path_to_code = os.path.join(path_to_folder, "solution.py")
     # run crosshair to get test parameters
     try:
@@ -52,7 +53,7 @@ for task in tqdm(tasks, total=len(tasks)):
 
     except Exception as e:
         print("Crosshair failed for task", task)
-        print(e)
+        shutil.rmtree(os.path.join(path_to_preference, task))
         continue
 print("finished crosshair")
 
