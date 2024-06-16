@@ -2,6 +2,7 @@ import os
 import json
 import re
 import shutil
+
 from helper_functions import (get_call_based, 
                               get_class_tasks, 
                               get_one_class_one_def, 
@@ -104,9 +105,5 @@ non_class_tasks = [task for task in call_based_tasks if task not in class_tasks]
 n_inputs_not_class_tasks = get_number_inputs(non_class_tasks)
 non_class_tasks = [task for task in non_class_tasks if n_inputs_not_class_tasks[task] != 0]
 
-#one_class_one_def_tasks = ["0205", "0201"]
-#for task in one_class_one_def_tasks:
-#    shutil.rmtree(os.path.join(path_to_preference, str(task)), ignore_errors=True)
-    
 save_1c1d_annotated(one_class_one_def_tasks)
-#save_non_class_annotated(non_class_tasks)
+save_non_class_annotated(non_class_tasks)

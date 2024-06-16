@@ -17,6 +17,7 @@ import numpy as np
 from collections import Counter 
 from transformers import T5ForConditionalGeneration, RobertaTokenizer
 import datasets.utils as dsutils
+sys.set_int_max_str_digits(0)
 
 
 def generate_prompt(args, test_case_path, prompt_path, solutions_path, tokenizer, 
@@ -134,88 +135,91 @@ def main(args):
         
     # main eval loop
     for index, problem in tqdm(enumerate(problems), ncols=0, total=len(problems)):
-        
-        prob_path = os.path.join(problem)
-        print(f"problem path = {prob_path}")
-        
-        problem_id = int(problem.split('/')[-1])
-        
-        '''
-        if args.critic_scores and \
-            os.path.exists(os.path.join(args.output_path, f"{problem_id}_gt{args.gt_solutions}.pkl")):
-            continue 
-        elif os.path.exists(os.path.join(args.output_path, f"{problem_id}.json")):
-            continue 
-        '''
-        
-        test_case_path = os.path.join(prob_path, "input_output.json")
-        prompt_path = os.path.join(prob_path, "question.txt")
-        starter_path = os.path.join(prob_path, "starter_code.py")
-        if args.critic_scores and not args.gt_solutions: 
-            solutions_path = os.path.join(prob_path, "gen_solutions.json")
-        else:
-            solutions_path = os.path.join(prob_path, "solutions.json")
-        if not os.path.exists(starter_path):
-            starter_path = None
-
-        if args.critic_scores:
-            input_texts, input_codes, gt_error_types = generate_critic_inputs(args, test_case_path, prompt_path, solutions_path,
-                                                                  tokenizer, starter_path, args.gt_solutions)
-        else:
-            input_text = generate_prompt(args, test_case_path, prompt_path, solutions_path, 
-                                          tokenizer, starter_path)
-
-        with torch.no_grad():
-            if args.critic_scores:
-                text_tensor = torch.tensor(input_texts).to(device)
-                code_tensor = torch.tensor(input_codes).to(device)
-                gt_error_tensor = torch.tensor(gt_error_types).to(device)
-                
-                curr_inputs = {'input_ids': text_tensor, 'error_types': gt_error_tensor, 'labels': code_tensor}
-                _, error_preds, error_hidden_states = model(**curr_inputs, return_error_hidden_states=True)
-                
-                assert len(gt_error_types) == len(error_preds)
-                all_preds.extend(error_preds.cpu().numpy().tolist())
-                all_gts.extend(gt_error_types)
-                
-                saved_critic_scores = {'code': input_codes, 'prompt': input_texts,
-                                          'gt_error_type': gt_error_types, 
-                                          'pred_error_type': error_preds.cpu().numpy(),
-                                          'error_hidden_states': error_hidden_states.cpu().numpy()}
-                
-                if args.gt_solutions:
-                    scores_loc = os.path.join(prob_path,  "solutions_critic_scores.pkl")
-                else:
-                    scores_loc = os.path.join(prob_path,  "gen_solutions_critic_scores.pkl")
-                    
-                pkl.dump(saved_critic_scores, open(scores_loc, 'wb'))
-                    
+        try:
+            prob_path = os.path.join(problem)
+            print(f"problem path = {prob_path}")
+            
+            problem_id = int(problem.split('/')[-1])
+            
+            '''
+            if args.critic_scores and \
+                os.path.exists(os.path.join(args.output_path, f"{problem_id}_gt{args.gt_solutions}.pkl")):
+                continue 
+            elif os.path.exists(os.path.join(args.output_path, f"{problem_id}.json")):
+                continue 
+            '''
+            print(problem_id)
+            test_case_path = os.path.join(prob_path, "input_output.json")
+            prompt_path = os.path.join(prob_path, "question.txt")
+            starter_path = os.path.join(prob_path, "starter_code.py")
+            if args.critic_scores and not args.gt_solutions: 
+                solutions_path = os.path.join(prob_path, "gen_solutions.json")
             else:
-                input_ids = torch.LongTensor(tokenizer.encode(input_text, 
-                                                              verbose=False, 
-                                                              max_length=args.source_len)).unsqueeze(0).cuda()
+                solutions_path = os.path.join(prob_path, "solutions.json")
+            if not os.path.exists(starter_path):
+                starter_path = None
 
-                num_loops = int(args.num_seqs / args.num_seqs_per_iter)
-                output_programs = [] 
-                for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
-                    output_ids = model.generate(
-                        input_ids, 
-                        do_sample=True, 
-                        temperature=args.temperature, 
-                        max_length=args.max_len, 
-                        num_return_sequences=args.num_seqs_per_iter,
-                        top_p=0.95)                    
+            if args.critic_scores:
+                input_texts, input_codes, gt_error_types = generate_critic_inputs(args, test_case_path, prompt_path, solutions_path,
+                                                                    tokenizer, starter_path, args.gt_solutions)
+            else:
+                input_text = generate_prompt(args, test_case_path, prompt_path, solutions_path, 
+                                            tokenizer, starter_path)
 
-                    for output_id in output_ids: 
-                        output_programs.append(tokenizer.decode(output_id, skip_special_tokens=True))
+            with torch.no_grad():
+                if args.critic_scores:
+                    text_tensor = torch.tensor(input_texts).to(device)
+                    code_tensor = torch.tensor(input_codes).to(device)
+                    gt_error_tensor = torch.tensor(gt_error_types).to(device)
+                    
+                    curr_inputs = {'input_ids': text_tensor, 'error_types': gt_error_tensor, 'labels': code_tensor}
+                    _, error_preds, error_hidden_states = model(**curr_inputs, return_error_hidden_states=True)
+                    
+                    assert len(gt_error_types) == len(error_preds)
+                    all_preds.extend(error_preds.cpu().numpy().tolist())
+                    all_gts.extend(gt_error_types)
+                    
+                    saved_critic_scores = {'code': input_codes, 'prompt': input_texts,
+                                            'gt_error_type': gt_error_types, 
+                                            'pred_error_type': error_preds.cpu().numpy(),
+                                            'error_hidden_states': error_hidden_states.cpu().numpy()}
+                    
+                    if args.gt_solutions:
+                        scores_loc = os.path.join(prob_path,  "solutions_critic_scores.pkl")
+                    else:
+                        scores_loc = os.path.join(prob_path,  "gen_solutions_critic_scores.pkl")
+                        
+                    pkl.dump(saved_critic_scores, open(scores_loc, 'wb'))
+                        
+                else:
+                    input_ids = torch.LongTensor(tokenizer.encode(input_text, 
+                                                                verbose=False, 
+                                                                max_length=args.source_len)).unsqueeze(0).cuda()
 
-                saved_codes = {}
-                saved_codes[problem_id] = {'code': output_programs, 'prompt': input_text}
+                    num_loops = int(args.num_seqs / args.num_seqs_per_iter)
+                    output_programs = [] 
+                    for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
+                        output_ids = model.generate(
+                            input_ids, 
+                            do_sample=True, 
+                            temperature=args.temperature, 
+                            max_length=args.max_len, 
+                            num_return_sequences=args.num_seqs_per_iter,
+                            top_p=0.95)                    
 
-                codes_loc = os.path.join(args.output_path, f"{problem_id}.json")
-                with open(codes_loc, "w") as f:
-                    json.dump(saved_codes, f)
-                    print("The codes are saved!")
+                        for output_id in output_ids: 
+                            output_programs.append(tokenizer.decode(output_id, skip_special_tokens=True))
+
+                    saved_codes = {}
+                    saved_codes[problem_id] = {'code': output_programs, 'prompt': input_text}
+
+                    codes_loc = os.path.join(args.output_path, f"{problem_id}.json")
+                    with open(codes_loc, "w") as f:
+                        json.dump(saved_codes, f)
+                        print("The codes are saved!")
+        except Exception as e:
+            print(f"Error in problem {problem_id}: {e}")
+            continue
 
     if args.critic_scores: 
         print("Total number of samples: {}".format(len(all_gts)))

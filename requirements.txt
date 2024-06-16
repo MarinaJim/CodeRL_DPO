@@ -1,7 +1,9 @@
-torch==1.9.1
+torch==1.7.1
 pyext==0.7
 deepspeed
 transformers==4.17.0
 tqdm
 crosshair-tool==0.1.0
 MonkeyType==23.3.0
+matplotlib
+trl
