@@ -40,5 +40,6 @@ do
     cd $task
     monkeytype run sample_call.py
     monkeytype apply solution
+    crosshair cover --coverage_type path solution.py
     cd ..
 done

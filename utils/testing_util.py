@@ -359,6 +359,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                         if debug:
                             print(f"Call-based runtime error or time limit exceeded error = {repr(e)}{e}")
                         errors.append(e) 
+                        print(f"Call-based runtime error or time limit exceeded error = {repr(e)}{e}")
                         outputs.append(None) 
                         ## TESTING TRICK: exit loop if not pass a test case 
                         return -1, errors, outputs, sol
