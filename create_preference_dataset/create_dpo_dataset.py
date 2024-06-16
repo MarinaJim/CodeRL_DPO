@@ -37,7 +37,7 @@ def create_dpo_dataset_dict(path_to_preference):
                 encoding="utf-8",
             ) as f:
                 prompt = f.read()
-            prompts.append(prompt)
+                
             problem = str.lstrip(problem, "0")
             with open(
                 os.path.join("outputs/test_results", f"{problem}.pkl"),
@@ -48,6 +48,7 @@ def create_dpo_dataset_dict(path_to_preference):
                 sample = sample_chosen_rejected(output)
                 chosen_output.append(sample["chosen"])
                 rejected_output.append(sample["rejected"])
+                prompts.append(prompt)
         except Exception as e:
             print(f"Exception occured for {problem}: {e}")
             
