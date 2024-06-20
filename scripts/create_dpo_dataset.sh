@@ -1,8 +1,4 @@
-import os
-
-all_tasks = os.listdir("data/APPS/preference")
-monkeytype_tasks = [task for task in all_tasks if os.path.exists(os.path.join("data/APPS/preference", task, "sample_call.py"))]
-script = """#!/bin/bash
+#!/bin/bash
 #
 # The "#" before the "SBATCH" parameters do not comment it out! Use triple "###" to comment something out.
 # Check our wiki for valid QOS / PARTITION / ACCOUNT combinations and resource limits!
@@ -19,10 +15,10 @@ script = """#!/bin/bash
 #SBATCH --mem=64GB
 #
 # How many gpus to request
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #
 # Limit runtime d-hh:mm:ss - here limited to 1min
-#SBATCH --time=0-23:00:00
+#SBATCH --time=0-16:00:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
 #SBATCH --partition=gpu-athene
@@ -34,20 +30,25 @@ script = """#!/bin/bash
 ###SBATCH --qos=gpu
 #
 # Define standard output files - make sure those files exist
-#SBATCH --output=/storage/athene/work/sakharova/annotate.output
-#SBATCH --error=/storage/athene/work/sakharova/annotate.error\n"""
+#SBATCH --output=/storage/athene/work/sakharova/create_dpo_dataset.output
+#SBATCH --error=/storage/athene/work/sakharova/create_dpo_dataset.error
 
-script += "tasks=( " + " ".join(monkeytype_tasks)+ " )"
-script +="""
-cd data/APPS/preference
-for task in "${tasks[@]}"
+
+# transfer files into APPS/preference and create a sample call for non-class tasks
+# python create_preference_dataset/transfer_create_sample_calls.py
+# for each non-class task, create data type annotations using monkeytype and crosshair
+preference_dir=data/APPS/preference_test
+train_dir=data/APPS/train
+for task in "$preference_dir"/*
 do
-    echo Testing index $task
-    cd $task
-    monkeytype run sample_call.py
-    monkeytype apply solution
-    cd ..
+    if [ -e "$task/sample_call.py" ]; then
+        cd $task
+        monkeytype run sample_call.py
+        monkeytype apply solution
+        cd ../../../..
+    fi
+    python create_preference_dataset/create_inputs_for_task.py -t $task
+    python create_preference_dataset/create_outputs_for_task.py -t $task
+    python create_preference_dataset/bring_data_into_preference.py --tr $train_dir -t $task
 done
-"""
-with open("scripts/annotate.sh", "w") as f:
-    f.write(script)
+

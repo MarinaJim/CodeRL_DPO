@@ -6,4 +6,6 @@ tqdm
 crosshair-tool==0.1.0
 MonkeyType==23.3.0
 matplotlib
+# other env:
 trl
+datasets==2.10.1

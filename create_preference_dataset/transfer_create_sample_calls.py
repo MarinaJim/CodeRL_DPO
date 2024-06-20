@@ -1,7 +1,6 @@
 import os
 import json
 import re
-import shutil
 
 from helper_functions import (get_call_based, 
                               get_class_tasks, 
@@ -87,7 +86,7 @@ def save_non_class_annotated(non_class_tasks):
             f.write(sample_call)
     
 
-path_to_preference = "data/APPS/preference"
+path_to_preference = "data/APPS/preference_test"
 if not os.path.exists(path_to_preference):
     os.mkdir(path_to_preference)
     

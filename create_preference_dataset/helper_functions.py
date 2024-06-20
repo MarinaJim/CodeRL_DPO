@@ -48,9 +48,6 @@ def get_one_class_one_def(tasks):
                     if "def " in line:
                         n_def += 1
                 if n_class == 1 and n_def == 1:
-                    print(task)
-                    print(n_class)
-                    print(n_def)
                     one_class_one_def.append(task)
                     break
     return one_class_one_def

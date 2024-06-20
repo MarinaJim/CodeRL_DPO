@@ -6,19 +6,19 @@
 # You can shorten this example script and adapt to create your own one.
 #
 # Give your job a proper name
-#SBATCH --job-name=sm_generate
+#SBATCH --job-name=sm_run_unit_tests
 #
 # How many cpus to request
 #SBATCH --cpus-per-task=10
 #
 # How much memory to request
-#SBATCH --mem=64GB
+#SBATCH --mem=128GB
 #
 # How many gpus to request
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #
 # Limit runtime d-hh:mm:ss - here limited to 1min
-#SBATCH --time=0-23:00:00
+#SBATCH --time=0-20:00:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
 #SBATCH --partition=gpu-athene
@@ -30,7 +30,8 @@
 ###SBATCH --qos=gpu
 #
 # Define standard output files - make sure those files exist
-#SBATCH --output=/storage/athene/work/sakharova/cofmi.output
-#SBATCH --error=/storage/athene/work/sakharova/cofmi.error
+#SBATCH --output=/storage/athene/work/sakharova/run_dpo.output
+#SBATCH --error=/storage/athene/work/sakharova/run_dpo.error
 
-python create_preference_dataset/create_outputs_for_monkeytype_inputs.py
+module load cuda/12.2
+python my_dpo_trainer.py

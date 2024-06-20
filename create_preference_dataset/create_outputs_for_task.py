@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 from ast import literal_eval
+import argparse
 import sys
 sys.set_int_max_str_digits(0)
 
@@ -28,7 +29,7 @@ def save_outputs_call_based(parameters, fn_name, path_to_task, task_id):
     monkeytype_io["inputs"] = inputs
     monkeytype_io["outputs"] = outputs
 
-    with open(os.path.join(path_to_task, "monkeytype_io.json"), "w") as f:
+    with open(os.path.join(path_to_task, "input_output.json"), "w") as f:
         json.dump(monkeytype_io, f)
 
 
@@ -57,19 +58,13 @@ def save_outputs_std_output(parameters, fn_name, path_to_task, task_id):
     monkeytype_io["inputs"] = inputs
     monkeytype_io["outputs"] = outputs
 
-    with open(os.path.join(path_to_task, "monkeytype_io.json"), "w") as f:
+    with open(os.path.join(path_to_task, "input_output.json"), "w") as f:
         json.dump(monkeytype_io, f)
 
-def create_outputs_for_monkeytype_inputs(path_to_preference):
-    tasks = os.listdir(path_to_preference)
-    for task in tasks:
-        if not os.path.exists(os.path.join(path_to_preference, task, "monkeytype_io.json")):
-            print(task)
-        else:
-            print("exists")
-            
-        continue
-        path_to_task = os.path.join(path_to_preference, str(task))
+def create_outputs_for_monkeytype_inputs(path_to_task):
+        if not os.path.exists(path_to_task):
+            return
+        task = path_to_task.split("/")[-1]
         parameters_path = os.path.join(path_to_task, "parameters.json")
         with open(parameters_path) as f:
             parameters = json.load(f)
@@ -87,6 +82,10 @@ def create_outputs_for_monkeytype_inputs(path_to_preference):
         else:
             save_outputs_std_output(parameters, fn_name, path_to_task, task)
             
+
 if __name__ == "__main__":
-    path_to_preference = "data/APPS/preference"
-    create_outputs_for_monkeytype_inputs(path_to_preference)
+    parser = argparse.ArgumentParser(description="Testing generated programs with unit testing")
+    parser.add_argument("-t","--task_path", type=str, help="Path to the task crosshair will run for")
+    args = parser.parse_args()
+    
+    create_outputs_for_monkeytype_inputs(args.task_path)

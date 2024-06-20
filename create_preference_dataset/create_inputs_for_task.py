@@ -1,22 +1,16 @@
-print("Here")
 import subprocess
 import os
 import json
 import re
-from tqdm import tqdm
 import shutil
 from ast import literal_eval
+import argparse
 
-path_to_preference = "data/APPS/preference"
-tasks = os.listdir(path_to_preference)
-tasks = sorted(tasks)
-print("Start running crosshair")
-print(tasks[:5])
-for task in tqdm(tasks, total=len(tasks)):
-    print(task)
+def main(args):
+    task = args.task_path
+    print(f"Task is: {task}")
     all_params = []
-    path_to_folder = os.path.join(path_to_preference, task)
-    path_to_code = os.path.join(path_to_folder, "solution.py")
+    path_to_code = os.path.join(task, "solution.py")
     # run crosshair to get test parameters
     try:
         parameters = subprocess.check_output(["crosshair", "cover", 
@@ -48,12 +42,18 @@ for task in tqdm(tasks, total=len(tasks)):
             params = "[" + pattern.sub(r'\1', params) + "]"
             params = literal_eval(params)
             all_params.append(params)
-        with open(os.path.join(path_to_folder, "parameters.json"), "w") as f:
+        with open(os.path.join(task, "parameters.json"), "w") as f:
             json.dump(all_params, f)
 
     except Exception as e:
         print("Crosshair failed for task", task)
-        shutil.rmtree(os.path.join(path_to_preference, task))
-        continue
-print("finished crosshair")
+        shutil.rmtree(task)
+    
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Testing generated programs with unit testing")
+    parser.add_argument("-t","--task_path", type=str, help="Path to the task crosshair will run for")
+    args = parser.parse_args()
+    
+    main(args)
 
