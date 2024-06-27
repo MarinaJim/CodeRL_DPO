@@ -37,6 +37,7 @@ def save_outputs_std_output(parameters, fn_name, path_to_task, task_id):
     monkeytype_io = {}
     inputs = []
     outputs = []
+    monkeytype_io["fn_name"] = fn_name
 
     for params in parameters:
         call = f"from solution import Solution\n"

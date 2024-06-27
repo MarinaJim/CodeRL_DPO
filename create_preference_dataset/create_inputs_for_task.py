@@ -19,6 +19,9 @@ def main(args):
                                               "--per_path_timeout", "5",
                                               path_to_code], timeout=120)
         parameters = parameters.splitlines()
+        if parameters == []:
+            print("Crosshair did not find any parameters for task", task)
+            shutil.rmtree(task)
         # check parameter options one by one
         for params in parameters:
             # print original crosshair output

@@ -33,12 +33,11 @@
 #SBATCH --output=/storage/athene/work/sakharova/create_dpo_dataset.output
 #SBATCH --error=/storage/athene/work/sakharova/create_dpo_dataset.error
 
-
-# transfer files into APPS/preference and create a sample call for non-class tasks
-# python create_preference_dataset/transfer_create_sample_calls.py
-# for each non-class task, create data type annotations using monkeytype and crosshair
 preference_dir=data/APPS/preference_test
 train_dir=data/APPS/train
+
+python create_preference_dataset/transfer_create_sample_calls.py -pp $preference_dir -tp $train_dir
+
 for task in "$preference_dir"/*
 do
     if [ -e "$task/sample_call.py" ]; then
@@ -51,4 +50,3 @@ do
     python create_preference_dataset/create_outputs_for_task.py -t $task
     python create_preference_dataset/bring_data_into_preference.py --tr $train_dir -t $task
 done
-
