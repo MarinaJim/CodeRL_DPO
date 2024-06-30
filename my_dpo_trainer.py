@@ -23,7 +23,8 @@ def main():
         max_prompt_length=1024,
         max_length=1024,
         max_target_length=1024,
-        remove_unused_columns=False)
+        remove_unused_columns=False,
+        per_device_train_batch_size=4)
     
     dpo_trainer = DPOTrainer(
         model,

@@ -45,6 +45,9 @@ def main(args):
             params = "[" + pattern.sub(r'\1', params) + "]"
             params = literal_eval(params)
             all_params.append(params)
+        if all_params == []:
+            print("Something wrong with parameters for ", task)
+            shutil.rmtree(task)
         with open(os.path.join(task, "parameters.json"), "w") as f:
             json.dump(all_params, f)
 

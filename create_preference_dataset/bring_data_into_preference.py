@@ -26,6 +26,9 @@ def bring_data_to_preference(train_root, preference_root, task):
     
     if os.path.exists(os.path.join(preference_path, "solution.py")):
         os.remove(os.path.join(preference_path, "solution.py"))
+
+    if os.path.exists(os.path.join(preference_path, "method_output.json")):
+        os.remove(os.path.join(preference_path, "method_output.json"))
     
     if os.path.exists(os.path.join(preference_path, "__pycache__")):
         shutil.rmtree(os.path.join(preference_path, "__pycache__"))
