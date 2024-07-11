@@ -338,6 +338,7 @@ def run_test(prob_path:str=None, problem_list:List[str]=None, prob_index:int=Non
                     print(f"outputs = {output}, test outputs = {in_outs['outputs'][index]}, inputs = {inputs}, {type(inputs)}, {tmp_result}")
             
             elif which_type == CODE_TYPE.standard_input:  # Standard input
+                print("Standard input code")
                 faulthandler.enable()
                 signal.alarm(timeout)  
                 passed = False

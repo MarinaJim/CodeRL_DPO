@@ -34,7 +34,8 @@ def save_outputs_call_based(parameters, fn_name, path_to_task, task_id):
             print()
     if outputs == []:
         shutil.rmtree(path_to_task)
-    
+
+    monkeytype_io["fn_name"] = fn_name
     monkeytype_io["inputs"] = inputs
     monkeytype_io["outputs"] = outputs
 
@@ -46,7 +47,6 @@ def save_outputs_class_based(parameters, fn_name, path_to_task, task_id):
     monkeytype_io = {}
     inputs = []
     outputs = []
-    monkeytype_io["fn_name"] = fn_name
 
     for params in parameters:
         call = "import json\n"
@@ -74,6 +74,7 @@ def save_outputs_class_based(parameters, fn_name, path_to_task, task_id):
     
     monkeytype_io["inputs"] = inputs
     monkeytype_io["outputs"] = outputs
+    monkeytype_io["fn_name"] = fn_name
 
     with open(os.path.join(path_to_task, "input_output.json"), "w") as f:
         json.dump(monkeytype_io, f)

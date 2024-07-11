@@ -21,7 +21,7 @@ import transformers
 import torch
 from transformers import T5ForConditionalGeneration
 
-from datasets.apps_dataset import APPSBaseDataset
+from datasets_apps.apps_dataset import APPSBaseDataset
 from trainers.trainer_rl import Trainer_RL
 from transformers import Trainer  
 

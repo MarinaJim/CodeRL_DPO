@@ -16,7 +16,7 @@ import pickle as pkl
 import numpy as np 
 from collections import Counter 
 from transformers import T5ForConditionalGeneration, RobertaTokenizer
-import datasets.utils as dsutils
+import datasets_apps.utils as dsutils
 sys.set_int_max_str_digits(0)
 
 

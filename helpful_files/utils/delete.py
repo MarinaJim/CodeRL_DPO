@@ -1,3 +1,10 @@
+#
+# '''
+# Copyright (c) 2022, salesforce.com, inc.
+# All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+# For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+# '''#
 import json
 import numpy as np
 import os
@@ -16,20 +23,15 @@ def eval_and_save_problems(args):
 
     problems = sorted(glob.glob(args.test_path + '/*'))
     test_indices = [] 
-    # enumerate through sorted problems
     for problem_idx, problem in enumerate(problems): 
-        # get the real id
         problem_id = int(problem.split('/')[-1])
-        # get real file path
         code_file_path = args.code_path + '/{}.json'.format(problem_id)
         if os.path.exists(code_file_path):
-            # append the list index
             test_indices.append(problem_idx)
-
+    
     real_index = test_indices[args.index] 
     problem = problems[real_index]
-    real_index = int(problem.split('/')[-1])
-
+    
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
     
@@ -40,17 +42,9 @@ def eval_and_save_problems(args):
     
     codes_loc = args.code_path + '/{}.json'.format(real_index)
     if not os.path.isfile(codes_loc):
-        print(f"codes_loc: {codes_loc} is not a file")
         exit() 
     with open(codes_loc, "r") as file: 
         gen_codes = json.load(file)[str(real_index)]['code']
-
-    test_file = os.path.join(problem, "input_output.json")
-    tests = json.load(open(test_file, 'r'))
-    nb_tests = len(tests['inputs'])
-    if args.max_tests!=-1 and nb_tests > args.max_tests: 
-        print("args.max_tests!=-1 and nb_tests > args.max_tests")
-        exit() 
 
     if os.path.isfile(args.output_path + '/{}.pkl'.format(real_index)):
         exit()
@@ -69,13 +63,23 @@ def eval_and_save_problems(args):
                                           example_tests=args.example_tests)
 
             curr_errors = [(e, traceback.format_tb(e.__traceback__)) if e is not None else e for e in curr_errors]
-            all_results.append(curr_results)
-            all_errors.append(curr_errors)
-            all_sols.append(curr_sol)
+            fixed = []
+            for e in curr_results:
+                if isinstance(e, np.ndarray):
+                    e = e.item(0)
+                if isinstance(e, np.bool_):
+                    e = bool(e)
+                fixed.append(e)
+            curr_results = fixed
 
         except Exception as e:
             print(f"test framework exception = {repr(e)}{e}\n")
             break
+        finally:
+            assert isinstance(curr_results, list)
+            all_results.append(curr_results)
+            all_errors.append(curr_errors)
+            all_sols.append(curr_sol)
 
         save_results = {real_index : {'results': all_results, 'errors': all_errors, 'sols': all_sols}} 
         with open(args.output_path + '/{}.pkl'.format(real_index), "wb") as file:

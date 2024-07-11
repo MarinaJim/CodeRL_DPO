@@ -9,7 +9,7 @@
 import argparse
 
 parser = argparse.ArgumentParser(description="Training a critic model for code generation")
-parser.add_argument('--model', default='codet5-base', type=str, help='type of transformers model as model backbone')
+parser.add_argument('--model', default='codet5-large-ntp-py', type=str, help='type of transformers model as model backbone')
 parser.add_argument('--model_path', default=None, type=str, help='path to model backbone pretrained weights') 
 parser.add_argument('--save_dir', default=None, type=str, help='path to save trained critic model checkpoints') 
 
