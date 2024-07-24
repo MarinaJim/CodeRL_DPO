@@ -15,12 +15,13 @@ parser.add_argument('--save_dir', default=None, type=str, help='path to save tra
 
 # Dataloading
 parser.add_argument('--train-path', default='data/APPS/train/', type=str, help='path to training data')
+parser.add_argument('--val_path', default='data/APPS/validation', type=str, help='path to validation data')
 parser.add_argument('--sample-mode', default='uniform_sol', help='sampling output programs following a uniform distribution by program population')
 # Model
 parser.add_argument('--tuning_mode', default='critic', type=str, help='tuning mode for training LMs')
 parser.add_argument('--relative_returns', default=False, action='store_true', help='use relative returns against a baseline during RL')
 parser.add_argument('--clone_rl_head', default=False, action='store_true', help='Optional: clone a seperate linear layer for RL samples and initialize it from finetuned LM head')
-
+parser.add_argument('--resume_from_checkpoint', default=None, help='Checkpoint from which the training is continued')
 
 # Training
 parser.add_argument('--epochs', default=10, type=int, help='total number of training epochs')

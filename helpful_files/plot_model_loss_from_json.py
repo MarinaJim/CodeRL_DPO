@@ -33,5 +33,6 @@ avg_losses = [sum(losses) / len(losses) for losses in grouped_losses.values()]
 plt.plot(grouped_losses.keys(), avg_losses)
 plt.xlabel("Epoch")
 plt.ylabel("Cross-entropy loss")
+plt.xticks(list(grouped_losses.keys()))
 plt.savefig("helpful_files/output_files/loss_plot_0-19.png")
 

@@ -29,7 +29,7 @@ import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 
-def run_training(args, train_data):
+def run_training(args, train_data, validation_data):
     if args.model in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
         model_path = args.model_path if args.model_path is not None else 'Salesforce/{}'.format(args.model)        
         print("Loading model from {}...".format(model_path))
@@ -56,7 +56,7 @@ def run_training(args, train_data):
         do_train=True,
         do_eval=False,
         do_predict=True,
-        evaluation_strategy='no',
+        evaluation_strategy='epoch',
         eval_steps=0, 
 
         num_train_epochs=args.epochs,
@@ -95,17 +95,22 @@ def run_training(args, train_data):
             model=model,
             args=training_args,
             train_dataset=train_data,
+            eval_dataset=validation_data
         )
     
-    trainer.train()
+    if args.resume_from_checkpoint == "none":
+        rfc = None
+    else:
+        rfc = args.resume_from_checkpoint
+    trainer.train(rfc)
     
     if args.local_rank == 0:
         model.save_pretrained(os.path.join(args.save_dir, "final_checkpoint"))
 
 
-def get_dataset(args): 
+def get_dataset(args, data_path): 
     
-    fnames = os.listdir(args.train_path) 
+    fnames = os.listdir(data_path) 
     
     # train in debugging modfie with small data split 
     if args.db:
@@ -119,8 +124,8 @@ def get_dataset(args):
         max_src_tokens = -1
     print("right before loading")
     sys.stdout.flush()
-    train_data = APPSBaseDataset(
-        dataroot=args.train_path, 
+    data = APPSBaseDataset(
+        dataroot=data_path, 
         problem_dirs=fnames,
         model=args.model,
         max_tokens=max_tokens,
@@ -129,7 +134,7 @@ def get_dataset(args):
         tuning_mode=args.tuning_mode,
         relative_returns=args.relative_returns,
     )
-    return train_data
+    return data
 
 
 def main(args):
@@ -140,12 +145,12 @@ def main(args):
 
     os.makedirs(args.save_dir, exist_ok=True)
     # Load dataset 
-    train_data = get_dataset(args)
-
+    train_data = get_dataset(args, args.train_path)
+    validation_data = get_dataset(args, args.val_path)
     # Save args to file
     #json.dump(argsdict, open(os.path.join(args.save_dir, "args.json"), 'w'))
     # Load and train model; save model checkpoints 
-    run_training(args, train_data)
+    run_training(args, train_data, validation_data)
 
 
 if __name__ == "__main__":
