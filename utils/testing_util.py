@@ -589,11 +589,8 @@ def call_method(method, inputs):
     return _inner_call_method(method) 
 
 def main(args):
-    print(args)
     problem_list = sorted(get_valid_problems(args.source))
-    print(f"number of problems = {len(problem_list)}")
     prob_index = args.number
-    print(f"problem is {problem_list[prob_index]}")
 
     # This checks it correctly loaded. remove this later
     assert prob_index < len(problem_list)

@@ -22,7 +22,7 @@ parser.add_argument('--tuning_mode', default='critic', type=str, help='tuning mo
 parser.add_argument('--relative_returns', default=False, action='store_true', help='use relative returns against a baseline during RL')
 parser.add_argument('--clone_rl_head', default=False, action='store_true', help='Optional: clone a seperate linear layer for RL samples and initialize it from finetuned LM head')
 parser.add_argument('--resume_from_checkpoint', default=None, help='Checkpoint from which the training is continued')
-
+parser.add_argument('--tokenizer', "-t", help="tokenizer to use")
 # Training
 parser.add_argument('--epochs', default=10, type=int, help='total number of training epochs')
 parser.add_argument('--lr', default=5e-5, type=float, help='training learning rate')

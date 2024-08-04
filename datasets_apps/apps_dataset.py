@@ -20,13 +20,12 @@ import pickle as pkl
 import json, pdb 
 
 from multiprocessing import Manager
-import transformers
-
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 import datasets_apps.utils as dsutils
 
 class APPSBaseDataset(torch.utils.data.Dataset):
     def __init__(self, dataroot, problem_dirs, model, max_tokens, sample_mode, 
-                 tuning_mode, max_src_tokens, relative_returns):
+                 tuning_mode, max_src_tokens, relative_returns, tokenizer):
         self.dataroot = dataroot
         self.problem_dirs = problem_dirs 
 
@@ -41,8 +40,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         self.samples = []           
         self.all_error_types, self.all_error_subtypes, self.all_baseline_error_types = [], [], []
         self.initialize()
-        if self.model in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
-            self.tokenizer = transformers.RobertaTokenizer.from_pretrained('Salesforce/codet5-base')
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+
 
     def load_gen_samples(self, sols, answer_type, starter_code, question_str):
         samples = []

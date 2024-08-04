@@ -9,10 +9,10 @@
 #SBATCH --job-name=sm_train_actor
 #
 # How many cpus to request
-#SBATCH --cpus-per-task=10
+#SBATCH --cpus-per-task=16
 #
 # How much memory to request
-#SBATCH --mem=64GB
+#SBATCH --mem=256GB
 #
 # How many gpus to request
 #SBATCH --gres=gpu:2
@@ -22,25 +22,31 @@
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
 #SBATCH --partition=gpu-athene
-#
+
 # ACCOUNT to use (default account for athene-only people is "athene-researcher" and therefore does not need to be specified - check your accounts with command: "sshare -U")
-###SBATCH --account=athene-student
+###SBATCH --account=gpu-large
 #
 # QOS to use (default QOS for everyone is "gpu" and therefore does not need to be specified)
-###SBATCH --qos=gpu
+###SBATCH --qos=gpu-large
 #
 # Define standard output files - make sure those files exist
 #SBATCH --output=/storage/athene/work/sakharova/train_actor.output
 #SBATCH --error=/storage/athene/work/sakharova/train_actor.error
 
+module load cuda/12.2
+#model=codellama/CodeLlama-7b-Python-hf
+#tokenizer=codellama/CodeLlama-7b-Python-hf
+#save_dir=llama7b_python-2e-5-epoch10
 
-# Run code with deepspeed 
-save_dir=finetuned-codet5-large-ntp-py/
+model=codet5-large-ntp-py
+tokenizer=Salesforce/codet5-large-ntp-py
+save_dir=codet5-large-ntp-py
 
 python train.py \
-    --batch-size-per-replica 4 --grad-acc-steps 2 \
-    --epochs 100 --lr 2e-5 \
-    --save-freq 100 --save_total_limit 5 \
+    --batch-size-per-replica 1 --grad-acc-steps 1 \
+    --epochs 10 --lr 2e-5 \
+    --save-freq 1000 --save_total_limit 5 \
     --fp16 \
-    --tuning_mode none --model codet5-large-ntp-py  \
-    --save_dir $save_dir 
+    --tuning_mode none \
+    --save_dir $save_dir \
+    --tokenizer $tokenizer --model $model

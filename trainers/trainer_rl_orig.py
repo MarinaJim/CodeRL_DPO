@@ -28,8 +28,16 @@ import pdb
 
 # Integrations must be imported before ML frameworks:
 from transformers.integrations import (  # isort: split
+    default_hp_search_backend,
     get_reporting_integration_callbacks,
-    hp_params
+    hp_params,
+    is_fairscale_available,
+    is_optuna_available,
+    is_ray_tune_available,
+    is_sigopt_available,
+    run_hp_search_optuna,
+    run_hp_search_ray,
+    run_hp_search_sigopt,
 )
 
 import numpy as np
@@ -45,7 +53,7 @@ from transformers import __version__
 from transformers.configuration_utils import PretrainedConfig
 from transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
 from transformers.debug_utils import DebugOption, DebugUnderflowOverflow
-from transformers.deepspeed import deepspeed_init, is_deepspeed_zero3_enabled
+from transformers.deepspeed import deepspeed_init, deepspeed_reinit, is_deepspeed_zero3_enabled
 from transformers.dependency_versions_check import dep_version_check
 from transformers.file_utils import (
     CONFIG_NAME,
@@ -56,6 +64,7 @@ from transformers.file_utils import (
     is_in_notebook,
     is_sagemaker_dp_enabled,
     is_sagemaker_mp_enabled,
+    is_torch_tpu_available,
 )
 from transformers.modelcard import TrainingSummary
 from transformers.modeling_utils import PreTrainedModel, unwrap_model
@@ -100,9 +109,11 @@ from transformers.trainer_utils import (
     HubStrategy,
     IntervalStrategy,
     PredictionOutput,
+    ShardedDDPOption,
     TrainerMemoryTracker,
     TrainOutput,
     default_compute_objective,
+    default_hp_space,
     denumpify_detensorize,
     get_last_checkpoint,
     number_of_arguments,
@@ -135,6 +146,19 @@ if version.parse(torch.__version__) >= version.parse("1.6"):
 if is_datasets_available():
     import datasets
 
+if is_torch_tpu_available():
+    import torch_xla.core.xla_model as xm
+    import torch_xla.debug.metrics as met
+    import torch_xla.distributed.parallel_loader as pl
+
+if is_fairscale_available():
+    dep_version_check("fairscale")
+    import fairscale
+    from fairscale.nn.data_parallel import FullyShardedDataParallel as FullyShardedDDP
+    from fairscale.nn.data_parallel import ShardedDataParallel as ShardedDDP
+    from fairscale.nn.wrap import auto_wrap
+    from fairscale.optim import OSS
+    from fairscale.optim.grad_scaler import ShardedGradScaler
 
 if is_sagemaker_dp_enabled():
     import smdistributed.dataparallel.torch.distributed as dist
@@ -312,7 +336,19 @@ class Trainer_RL:
 
             if args.local_rank == -1:
                 raise ValueError("Using sharded DDP only works in distributed training.")
-
+            elif not is_fairscale_available():
+                raise ImportError("Sharded DDP training requires fairscale: `pip install fairscale`.")
+            elif ShardedDDPOption.SIMPLE not in args.sharded_ddp and FullyShardedDDP is None:
+                raise ImportError(
+                    "Sharded DDP in a mode other than simple training requires fairscale version >= 0.3, found "
+                    f"{fairscale.__version__}. Upgrade your fairscale library: `pip install --upgrade fairscale`."
+                )
+            elif ShardedDDPOption.SIMPLE in args.sharded_ddp:
+                self.sharded_ddp = ShardedDDPOption.SIMPLE
+            elif ShardedDDPOption.ZERO_DP_2 in args.sharded_ddp:
+                self.sharded_ddp = ShardedDDPOption.ZERO_DP_2
+            elif ShardedDDPOption.ZERO_DP_3 in args.sharded_ddp:
+                self.sharded_ddp = ShardedDDPOption.ZERO_DP_3
 
         # one place to sort out whether to place the model on device or not
         # postpone switching model to cuda when:
@@ -326,6 +362,7 @@ class Trainer_RL:
             self.is_model_parallel
             or args.deepspeed
             or ((args.fp16_full_eval or args.bf16_full_eval) and not args.do_train)
+            or (self.sharded_ddp in [ShardedDDPOption.ZERO_DP_2, ShardedDDPOption.ZERO_DP_3])
         ):
             self.place_model_on_device = False
 
@@ -367,7 +404,9 @@ class Trainer_RL:
         if self.args.push_to_hub:
             self.init_git_repo()
             # In case of pull, we need to make sure every process has the latest.
-            if args.local_rank != -1:
+            if is_torch_tpu_available():
+                xm.rendezvous("init git repo")
+            elif args.local_rank != -1:
                 dist.barrier()
 
         if self.args.should_save:
@@ -632,7 +671,11 @@ class Trainer_RL:
     def _get_eval_sampler(self, eval_dataset: Dataset) -> Optional[torch.utils.data.Sampler]:
         # Deprecated code
         if self.args.use_legacy_prediction_loop:
-            if is_sagemaker_mp_enabled():
+            if is_torch_tpu_available():
+                return SequentialDistributedSampler(
+                    eval_dataset, num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal()
+                )
+            elif is_sagemaker_mp_enabled():
                 return SequentialDistributedSampler(
                     eval_dataset,
                     num_replicas=smp.dp_size(),
@@ -786,7 +829,14 @@ class Trainer_RL:
                     "eps": self.args.adam_epsilon,
                 }
             optimizer_kwargs["lr"] = self.args.learning_rate
-            self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
+            if self.sharded_ddp == ShardedDDPOption.SIMPLE:
+                self.optimizer = OSS(
+                    params=optimizer_grouped_parameters,
+                    optim=optimizer_cls,
+                    **optimizer_kwargs,
+                )
+            else:
+                self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
 
         if is_sagemaker_mp_enabled():
             self.optimizer = smp.DistributedOptimizer(self.optimizer)
@@ -926,6 +976,25 @@ class Trainer_RL:
         # inside a DistributedDataParallel as we'll be under `no_grad` anyways.
         if not training:
             return model
+
+        # Distributed training (should be after apex fp16 initialization)
+        if self.sharded_ddp is not None:
+            # Sharded DDP!
+            if self.sharded_ddp == ShardedDDPOption.SIMPLE:
+                model = ShardedDDP(model, self.optimizer)
+            else:
+                mixed_precision = self.args.fp16 or self.args.bf16
+                cpu_offload = ShardedDDPOption.OFFLOAD in self.args.sharded_ddp
+                zero_3 = self.sharded_ddp == ShardedDDPOption.ZERO_DP_3
+                # XXX: Breaking the self.model convention but I see no way around it for now.
+                if ShardedDDPOption.AUTO_WRAP in self.args.sharded_ddp:
+                    model = auto_wrap(model)
+                self.model = model = FullyShardedDDP(
+                    model,
+                    mixed_precision=mixed_precision,
+                    reshard_after_forward=zero_3,
+                    cpu_offload=cpu_offload,
+                ).to(self.args.device)
 
         elif is_sagemaker_dp_enabled():
             model = DDP(model, device_ids=[dist.get_local_rank()], broadcast_buffers=False)
@@ -1095,7 +1164,7 @@ class Trainer_RL:
             else:
                 debug_overflow = DebugUnderflowOverflow(self.model)  # noqa
 
-        delay_optimizer_creation = self.sharded_ddp is not None
+        delay_optimizer_creation = self.sharded_ddp is not None and self.sharded_ddp != ShardedDDPOption.SIMPLE
         if args.deepspeed:
             deepspeed_engine, optimizer, lr_scheduler = deepspeed_init(
                 self, num_training_steps=max_steps, resume_from_checkpoint=resume_from_checkpoint
@@ -1221,7 +1290,11 @@ class Trainer_RL:
             elif isinstance(train_dataloader.dataset, IterableDatasetShard):
                 train_dataloader.dataset.set_epoch(epoch)
 
-            epoch_iterator = train_dataloader
+            if is_torch_tpu_available():
+                parallel_loader = pl.ParallelLoader(train_dataloader, [args.device]).per_device_loader(args.device)
+                epoch_iterator = parallel_loader
+            else:
+                epoch_iterator = train_dataloader
 
             # Reset the past mems state at the beginning of each epoch if necessary.
             if args.past_index >= 0:
@@ -1263,6 +1336,7 @@ class Trainer_RL:
 
                 if (
                     args.logging_nan_inf_filter
+                    and not is_torch_tpu_available()
                     and (torch.isnan(tr_loss_step) or torch.isinf(tr_loss_step))
                 ):
                     # if loss is nan or inf simply add the average of previous logged losses
@@ -1272,6 +1346,7 @@ class Trainer_RL:
                     
                 if (
                     args.logging_nan_inf_filter
+                    and not is_torch_tpu_available()
                     and (torch.isnan(tr_rl_loss_step) or torch.isinf(tr_rl_loss_step))
                 ):
                     # if loss is nan or inf simply add the average of previous logged losses
@@ -1317,6 +1392,8 @@ class Trainer_RL:
                     optimizer_was_run = True
                     if self.deepspeed:
                         pass  # called outside the loop
+                    elif is_torch_tpu_available():
+                        xm.optimizer_step(self.optimizer)
                     elif self.do_grad_scaling:
                         scale_before = self.scaler.get_scale()
                         self.scaler.step(self.optimizer)
@@ -1352,11 +1429,14 @@ class Trainer_RL:
             self._maybe_log_save_evaluate(tr_loss, tr_rl_loss, tr_acc, model, trial, epoch, ignore_keys_for_eval)
 
             if DebugOption.TPU_METRICS_DEBUG in per_device_train_batch_size.debug:
-
-                logger.warning(
-                    "You enabled PyTorch/XLA debug metrics but you don't have a TPU "
-                    "configured. Check your training configuration if this is unexpected."
-                )
+                if is_torch_tpu_available():
+                    # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
+                    xm.master_print(met.metrics_report())
+                else:
+                    logger.warning(
+                        "You enabled PyTorch/XLA debug metrics but you don't have a TPU "
+                        "configured. Check your training configuration if this is unexpected."
+                    )
             if self.control.should_training_stop:
                 break
 
@@ -1367,7 +1447,9 @@ class Trainer_RL:
         logger.info("\n\nTraining completed. Do not forget to share your model on huggingface.co/models =)\n\n")
         if args.load_best_model_at_end and self.state.best_model_checkpoint is not None:
             # Wait for everyone to get here so we are sur the model has been saved by process 0.
-            if args.local_rank != -1:
+            if is_torch_tpu_available():
+                xm.rendezvous("load_best_model_at_end")
+            elif args.local_rank != -1:
                 dist.barrier()
 
             logger.info(
@@ -1376,6 +1458,18 @@ class Trainer_RL:
 
             best_model_path = os.path.join(self.state.best_model_checkpoint, WEIGHTS_NAME)
             if os.path.exists(best_model_path):
+                if self.deepspeed:
+                    # temp hack until Deepspeed fixes the problem with resume from an existing engine that did some stepping
+                    deepspeed_engine, optimizer, lr_scheduler = deepspeed_reinit(self)
+                    self.model = deepspeed_engine.module
+                    self.model_wrapped = deepspeed_engine
+                    self.deepspeed = deepspeed_engine
+                    self.optimizer = optimizer
+                    self.lr_scheduler = lr_scheduler
+                    self.deepspeed.load_checkpoint(
+                        self.state.best_model_checkpoint, load_optimizer_states=True, load_lr_scheduler_states=True
+                    )
+                else:
                     # We load the model state dict on the CPU to avoid an OOM error.
                     state_dict = torch.load(best_model_path, map_location="cpu")
                     # If the model is on the GPU, it still works!
@@ -1467,7 +1561,7 @@ class Trainer_RL:
         if checkpoint is None:
             return
 
-        local_rank = self.args.local_rank
+        local_rank = xm.get_local_ordinal() if is_torch_tpu_available() else self.args.local_rank
         if local_rank != -1:
             rng_file = os.path.join(checkpoint, f"rng_state_{local_rank}.pth")
             if not os.path.isfile(os.path.join(checkpoint, rng_file)):
@@ -1494,6 +1588,8 @@ class Trainer_RL:
                 torch.cuda.random.set_rng_state(checkpoint_rng_state["cuda"])
             else:
                 torch.cuda.random.set_rng_state_all(checkpoint_rng_state["cuda"])
+        if is_torch_tpu_available():
+            xm.set_rng_state(checkpoint_rng_state["xla"])
 
     def _save_checkpoint(self, model, trial, metrics=None):
         # In all cases, including ddp/dp/deepspeed, self.model is always a reference to the model we
@@ -1525,7 +1621,17 @@ class Trainer_RL:
             # config `stage3_gather_fp16_weights_on_model_save` is True
             self.deepspeed.save_checkpoint(output_dir)
 
-        if is_sagemaker_mp_enabled():
+        # Save optimizer and scheduler
+        if self.sharded_ddp == ShardedDDPOption.SIMPLE:
+            self.optimizer.consolidate_state_dict()
+
+        if is_torch_tpu_available():
+            xm.rendezvous("saving_optimizer_states")
+            xm.save(self.optimizer.state_dict(), os.path.join(output_dir, OPTIMIZER_NAME))
+            with warnings.catch_warnings(record=True) as caught_warnings:
+                xm.save(self.lr_scheduler.state_dict(), os.path.join(output_dir, SCHEDULER_NAME))
+                reissue_pt_warnings(caught_warnings)
+        elif is_sagemaker_mp_enabled():
             if smp.dp_rank() == 0:
                 # Consolidate the state dict on all processed of dp_rank 0
                 opt_state_dict = self.optimizer.state_dict()
@@ -1579,11 +1685,13 @@ class Trainer_RL:
             else:
                 rng_states["cuda"] = torch.cuda.random.get_rng_state()
 
+        if is_torch_tpu_available():
+            rng_states["xla"] = xm.get_rng_state()
 
         # A process can arrive here before the process 0 has a chance to save the model, in which case output_dir may
         # not yet exist.
         os.makedirs(output_dir, exist_ok=True)
-        local_rank = self.args.local_rank
+        local_rank = xm.get_local_ordinal() if is_torch_tpu_available() else self.args.local_rank
         if local_rank == -1:
             torch.save(rng_states, os.path.join(output_dir, "rng_state.pth"))
         else:
@@ -1608,7 +1716,20 @@ class Trainer_RL:
         if os.path.isfile(os.path.join(checkpoint, OPTIMIZER_NAME)) and os.path.isfile(
             os.path.join(checkpoint, SCHEDULER_NAME)
         ):
+            # Load in optimizer and scheduler states
+            if is_torch_tpu_available():
+                # On TPU we have to take some extra precautions to properly load the states on the right device.
+                optimizer_state = torch.load(os.path.join(checkpoint, OPTIMIZER_NAME), map_location="cpu")
+                with warnings.catch_warnings(record=True) as caught_warnings:
+                    lr_scheduler_state = torch.load(os.path.join(checkpoint, SCHEDULER_NAME), map_location="cpu")
+                reissue_pt_warnings(caught_warnings)
 
+                xm.send_cpu_data_to_device(optimizer_state, self.args.device)
+                xm.send_cpu_data_to_device(lr_scheduler_state, self.args.device)
+
+                self.optimizer.load_state_dict(optimizer_state)
+                self.lr_scheduler.load_state_dict(lr_scheduler_state)
+            else:
                 map_location = "cpu" if is_sagemaker_mp_enabled() else self.args.device
                 self.optimizer.load_state_dict(
                     torch.load(os.path.join(checkpoint, OPTIMIZER_NAME), map_location=map_location)
@@ -1618,7 +1739,7 @@ class Trainer_RL:
                 reissue_pt_warnings(caught_warnings)
                 if self.do_grad_scaling and os.path.isfile(os.path.join(checkpoint, SCALER_NAME)):
                     self.scaler.load_state_dict(torch.load(os.path.join(checkpoint, SCALER_NAME)))
-    '''
+
     def hyperparameter_search(
         self,
         hp_space: Optional[Callable[["optuna.Trial"], Dict[str, float]]] = None,
@@ -1709,7 +1830,6 @@ class Trainer_RL:
 
         self.hp_search_backend = None
         return best_run
-    '''
 
     def log(self, logs: Dict[str, float]) -> None:
         """
@@ -1909,12 +2029,20 @@ class Trainer_RL:
         if output_dir is None:
             output_dir = self.args.output_dir
 
+        if is_torch_tpu_available():
+            self._save_tpu(output_dir)
         elif is_sagemaker_mp_enabled():
             # Calling the state_dict needs to be done on the wrapped model and on all processes.
             state_dict = self.model_wrapped.state_dict()
             if self.args.should_save:
                 self._save(output_dir, state_dict=state_dict)
-        
+        elif (
+            ShardedDDPOption.ZERO_DP_2 in self.args.sharded_ddp or ShardedDDPOption.ZERO_DP_3 in self.args.sharded_ddp
+        ):
+            state_dict = self.model.state_dict()
+
+            if self.args.should_save:
+                self._save(output_dir, state_dict=state_dict)
         elif self.deepspeed:
 
             # this takes care of everything as long as we aren't under zero3
@@ -2238,6 +2366,9 @@ class Trainer_RL:
         # Do this before wrapping.
         eval_dataset = dataloader.dataset
 
+        if is_torch_tpu_available():
+            dataloader = pl.ParallelLoader(dataloader, [args.device]).per_device_loader(args.device)
+
         if args.past_index >= 0:
             self._past = None
 
@@ -2357,7 +2488,11 @@ class Trainer_RL:
         """
         if tensors is None:
             return
-        if is_sagemaker_mp_enabled():
+        if is_torch_tpu_available():
+            if name is None:
+                name = "nested_gather"
+            tensors = nested_xla_mesh_reduce(tensors, name)
+        elif is_sagemaker_mp_enabled():
             tensors = smp_gather(tensors)
         elif self.args.local_rank != -1:
             tensors = distributed_concat(tensors)
@@ -2744,6 +2879,9 @@ class Trainer_RL:
 
         model.eval()
 
+        if is_torch_tpu_available():
+            dataloader = pl.ParallelLoader(dataloader, [args.device]).per_device_loader(args.device)
+
         if args.past_index >= 0:
             self._past = None
 
@@ -2809,6 +2947,8 @@ class Trainer_RL:
         """
         if tensors is None:
             return
+        if is_torch_tpu_available():
+            tensors = nested_xla_mesh_reduce(tensors, name)
         elif is_sagemaker_mp_enabled():
             tensors = smp_gather(tensors)
         elif self.args.local_rank != -1:

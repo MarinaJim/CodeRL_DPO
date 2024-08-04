@@ -15,7 +15,8 @@ from tqdm import tqdm
 import pickle as pkl 
 import numpy as np 
 from collections import Counter 
-from transformers import T5ForConditionalGeneration, RobertaTokenizer
+from transformers import T5ForConditionalGeneration, RobertaTokenizer, AutoTokenizer, AutoModelForCausalLM
+
 import datasets_apps.utils as dsutils
 sys.set_int_max_str_digits(0)
 
@@ -118,12 +119,19 @@ def main(args):
     print(problems[:5])
 
     # Set up model
-    tokenizer = RobertaTokenizer.from_pretrained('Salesforce/codet5-base')
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     print("Loading model from {}...".format(args.model_name))
-    if args.critic_scores:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
+    if "codet5" in args.model_name:
+        if args.critic_scores:
+            model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
+        else:
+            model = T5ForConditionalGeneration.from_pretrained(args.model_name) 
+    elif "CodeLlama" in args.model_name:
+        # Load model directly
+        model = AutoModelForCausalLM.from_pretrained(args.model_name)
     else:
-        model = T5ForConditionalGeneration.from_pretrained(args.model_name) 
+        print("model not found!")
+        exit(0)
         
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -199,13 +207,24 @@ def main(args):
                     num_loops = int(args.num_seqs / args.num_seqs_per_iter)
                     output_programs = [] 
                     for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
-                        output_ids = model.generate(
-                            input_ids, 
-                            do_sample=True, 
-                            temperature=args.temperature, 
-                            max_length=args.max_len, 
-                            num_return_sequences=args.num_seqs_per_iter,
-                            top_p=0.95)                    
+                        if "CodeLlama" in args.model_name:
+                            output_ids = model.generate(
+                                input_ids, 
+                                do_sample=True, 
+                                temperature=args.temperature, 
+                                max_length=args.max_len, 
+                                num_return_sequences=args.num_seqs_per_iter,
+                                top_p=0.95,
+                                pad_token_id=tokenizer.eos_token_id)  
+                        else:
+                            output_ids = model.generate(
+                                input_ids, 
+                                do_sample=True, 
+                                temperature=args.temperature, 
+                                max_length=args.max_len, 
+                                num_return_sequences=args.num_seqs_per_iter,
+                                top_p=0.95)
+
 
                         for output_id in output_ids: 
                             output_programs.append(tokenizer.decode(output_id, skip_special_tokens=True))

@@ -19,7 +19,7 @@ from datetime import datetime
 
 import transformers
 import torch
-from transformers import T5ForConditionalGeneration
+from transformers import T5ForConditionalGeneration, AutoModelForCausalLM
 
 from datasets_apps.apps_dataset import APPSBaseDataset
 from trainers.trainer_rl import Trainer_RL
@@ -27,6 +27,8 @@ from transformers import Trainer
 
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def run_training(args, train_data, validation_data):
@@ -42,7 +44,12 @@ def run_training(args, train_data, validation_data):
             print("Initializing RL head with finetuned LM head...")
             lm_head_params = model.lm_head.weight.detach().numpy()
             model.rl_head.weight = torch.nn.Parameter(torch.tensor(lm_head_params))
-                
+    
+    elif "CodeLlama" in args.model:
+        print("Loading model from {}...".format(args.model))
+        sys.stdout.flush()
+        model = AutoModelForCausalLM.from_pretrained(args.model) 
+
     print('Finished loading model {}'.format(args.model))
 
     start_iteration = 0
@@ -79,7 +86,7 @@ def run_training(args, train_data, validation_data):
         local_rank=args.local_rank,
 
         deepspeed=args.deepspeed,
-        fp16=args.fp16,
+        fp16=args.fp16
         
     )
     
@@ -133,6 +140,7 @@ def get_dataset(args, data_path):
         sample_mode=args.sample_mode,
         tuning_mode=args.tuning_mode,
         relative_returns=args.relative_returns,
+        tokenizer=args.tokenizer
     )
     return data
 
