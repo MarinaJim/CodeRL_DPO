@@ -121,7 +121,7 @@ def main(args):
     # Set up model
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     print("Loading model from {}...".format(args.model_name))
-    if "codet5" in args.model_name:
+    if "codet5" in args.model_name or "dpo_models" in args.model_name:
         if args.critic_scores:
             model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
         else:
@@ -208,6 +208,7 @@ def main(args):
                     output_programs = [] 
                     for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
                         if "CodeLlama" in args.model_name:
+                            start_index = input_ids.shape[-1]
                             output_ids = model.generate(
                                 input_ids, 
                                 do_sample=True, 
@@ -216,7 +217,12 @@ def main(args):
                                 num_return_sequences=args.num_seqs_per_iter,
                                 top_p=0.95,
                                 pad_token_id=tokenizer.eos_token_id)  
+                            
+                            for output_id in output_ids: 
+                                output_id = output_id[start_index:]
+                                output_programs.append(tokenizer.decode(output_id, skip_special_tokens=True))
                         else:
+
                             output_ids = model.generate(
                                 input_ids, 
                                 do_sample=True, 
@@ -224,10 +230,9 @@ def main(args):
                                 max_length=args.max_len, 
                                 num_return_sequences=args.num_seqs_per_iter,
                                 top_p=0.95)
-
-
-                        for output_id in output_ids: 
-                            output_programs.append(tokenizer.decode(output_id, skip_special_tokens=True))
+                            
+                            for output_id in output_ids: 
+                                output_programs.append(tokenizer.decode(output_id, skip_special_tokens=True))
 
                     saved_codes = {}
                     saved_codes[problem_id] = {'code': output_programs, 'prompt': input_text}

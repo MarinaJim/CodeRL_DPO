@@ -131,6 +131,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             # get ground truth samples from the list of solutions, answer type, started code and question
             # one sample here is one answer to the question
             gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
+            if len(gt_samples) > 5:
+                gt_samples = gt_samples[:5]
             all_samples += gt_samples 
             
             # Read all the solutions
@@ -253,7 +255,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
                     
         if self.tuning_mode in ['critic'] and sample_type == 'gen': 
             error_types = [] 
-                    
+        
         for sample in samples:
             if self.tuning_mode in ['critic'] and sample_type == 'gen': 
                 q_str, s_str, a_str, answer_type, result, error_subtype = sample
@@ -300,11 +302,13 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             
         # Cut off the excess
         input_ids = input_ids[:input_ids_max_len]
+        attention_mask = [1]*len(input_ids)
         label_ids = label_ids[:self.max_tokens]
         
         out_sample = {
-            "input_ids" : torch.LongTensor(input_ids),
-            "labels" :  torch.LongTensor(label_ids)
+            "input_ids" : input_ids,
+            "attention_mask" : attention_mask,
+            "labels" :  label_ids
         }
         
         if self.tuning_mode in ['critic'] and sample_type == 'gen': 
@@ -361,4 +365,25 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         
         return out_sample 
     
+
+def get_custom_dataset(dataset_config, tokenizer, split:str):
+    print("CUDA info")
+    torch.cuda.mem_get_info()
+    print()
+    print(dataset_config)
+    print()
+    if split == "train":
+        split_path = "data/APPS/train/"
+    else:
+        split_path = "data/APPS/validation"
+
+    return APPSBaseDataset(dataroot=split_path, 
+        problem_dirs=os.listdir(split_path),
+        model="codellama/CodeLlama-13b-Python-hf",
+        max_tokens=512,
+        max_src_tokens=600,
+        sample_mode='uniform_sol',
+        tuning_mode='none',
+        relative_returns=False,
+        tokenizer="codellama/CodeLlama-13b-Python-hf")
     

@@ -1,0 +1,7 @@
+unsloth
+packaging
+torch==2.3.0
+numpy==1.26
+bitsandbytes
+psutil
+transformers==4.29.0
