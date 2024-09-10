@@ -121,12 +121,12 @@ def main(args):
     # Set up model
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     print("Loading model from {}...".format(args.model_name))
-    if "codet5" in args.model_name or "dpo_models" in args.model_name:
+    if "codet5" in args.model_name or "t5_dpo_models" in args.model_name:
         if args.critic_scores:
             model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
         else:
             model = T5ForConditionalGeneration.from_pretrained(args.model_name) 
-    elif "CodeLlama" in args.model_name:
+    elif "CodeLlama" in args.model_name or "llama_dpo_models" in args.model_name:
         # Load model directly
         model = AutoModelForCausalLM.from_pretrained(args.model_name)
     else:
@@ -156,7 +156,9 @@ def main(args):
             elif os.path.exists(os.path.join(args.output_path, f"{problem_id}.json")):
                 continue 
             '''
-            print(problem_id)
+            if os.path.exists(os.path.join(args.output_path, f"{problem_id}.json")):
+                print(f"Path {problem_id} exists")
+                continue
             test_case_path = os.path.join(prob_path, "input_output.json")
             prompt_path = os.path.join(prob_path, "question.txt")
             starter_path = os.path.join(prob_path, "starter_code.py")
@@ -207,7 +209,7 @@ def main(args):
                     num_loops = int(args.num_seqs / args.num_seqs_per_iter)
                     output_programs = [] 
                     for i in tqdm(range(num_loops), ncols=0, total=num_loops, leave=False):
-                        if "CodeLlama" in args.model_name:
+                        if "CodeLlama" in args.model_name or "llama_dpo_models" in args.model_name:
                             start_index = input_ids.shape[-1]
                             output_ids = model.generate(
                                 input_ids, 

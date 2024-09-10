@@ -27,7 +27,7 @@ import pdb
 
 
 # Integrations must be imported before ML frameworks:
-from transformers.integrations import (  # isort: split
+from transformers.src.transformers.integrations import (  # isort: split
     default_hp_search_backend,
     get_reporting_integration_callbacks,
     hp_params,
@@ -49,13 +49,13 @@ from torch.utils.data.distributed import DistributedSampler
 
 from huggingface_hub import Repository
 
-from transformers import __version__
-from transformers.configuration_utils import PretrainedConfig
-from transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
-from transformers.debug_utils import DebugOption, DebugUnderflowOverflow
-from transformers.deepspeed import deepspeed_init, deepspeed_reinit, is_deepspeed_zero3_enabled
-from transformers.dependency_versions_check import dep_version_check
-from transformers.file_utils import (
+from transformers.src.transformers.__init__ import __version__
+from transformers.src.transformers.configuration_utils import PretrainedConfig
+from transformers.src.transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
+from transformers.src.transformers.debug_utils import DebugOption, DebugUnderflowOverflow
+from transformers.src.transformers.deepspeed import deepspeed_init, deepspeed_reinit, is_deepspeed_zero3_enabled
+from transformers.src.transformers.dependency_versions_check import dep_version_check
+from transformers.src.transformers.file_utils import (
     CONFIG_NAME,
     WEIGHTS_NAME,
     get_full_repo_name,
@@ -66,12 +66,12 @@ from transformers.file_utils import (
     is_sagemaker_mp_enabled,
     is_torch_tpu_available,
 )
-from transformers.modelcard import TrainingSummary
-from transformers.modeling_utils import PreTrainedModel, unwrap_model
-from transformers.models.auto.modeling_auto import MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES
-from transformers.optimization import Adafactor, AdamW, get_scheduler
-from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-from transformers.trainer_callback import (
+from transformers.src.transformers.modelcard import TrainingSummary
+from transformers.src.transformers.modeling_utils import PreTrainedModel, unwrap_model
+from transformers.src.transformers.models.auto.modeling_auto import MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES
+from transformers.src.transformers.optimization import Adafactor, AdamW, get_scheduler
+from transformers.src.transformers.tokenization_utils_base import PreTrainedTokenizerBase
+from transformers.src.transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
     PrinterCallback,
@@ -80,7 +80,7 @@ from transformers.trainer_callback import (
     TrainerControl,
     TrainerState,
 )
-from transformers.trainer_pt_utils import (
+from transformers.src.transformers.trainer_pt_utils import (
     DistributedLengthGroupedSampler,
     DistributedSamplerWithLoop,
     DistributedTensorGatherer,
@@ -100,7 +100,7 @@ from transformers.trainer_pt_utils import (
     nested_xla_mesh_reduce,
     reissue_pt_warnings,
 )
-from transformers.trainer_utils import (
+from transformers.src.transformers.trainer_utils import (
     PREFIX_CHECKPOINT_DIR,
     BestRun,
     EvalLoopOutput,
@@ -120,8 +120,8 @@ from transformers.trainer_utils import (
     set_seed,
     speed_metrics,
 )
-from transformers.training_args import ParallelMode, TrainingArguments
-from transformers.utils import logging
+from transformers.src.transformers.training_args import ParallelMode, TrainingArguments
+from transformers.src.transformers.utils import logging
 
 
 _is_torch_generator_available = False
@@ -264,7 +264,7 @@ class Trainer_RL:
 
     """
 
-    from transformers.trainer_pt_utils import _get_learning_rate, log_metrics, metrics_format, save_metrics, save_state
+    from transformers.src.transformers.trainer_pt_utils import _get_learning_rate, log_metrics, metrics_format, save_metrics, save_state
 
     def __init__(
         self,
@@ -1428,7 +1428,7 @@ class Trainer_RL:
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
             self._maybe_log_save_evaluate(tr_loss, tr_rl_loss, tr_acc, model, trial, epoch, ignore_keys_for_eval)
 
-            if DebugOption.TPU_METRICS_DEBUG in per_device_train_batch_size.debug:
+            if DebugOption.TPU_METRICS_DEBUG in self.args.debug:
                 if is_torch_tpu_available():
                     # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
                     xm.master_print(met.metrics_report())

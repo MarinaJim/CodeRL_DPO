@@ -35,9 +35,10 @@ def run_training(args, train_data, validation_data):
     if args.model in ['codet5-base', 'codet5-large', 'codet5-large-ntp-py']:
         model_path = args.model_path if args.model_path is not None else 'Salesforce/{}'.format(args.model)        
         print("Loading model from {}...".format(model_path))
-        sys.stdout.flush()
-        model = T5ForConditionalGeneration.from_pretrained(model_path) 
-
+        model = T5ForConditionalGeneration.from_pretrained(
+            model_path,
+            tuning_mode=args.tuning_mode, 
+            clone_rl_head=args.clone_rl_head) 
         
         if args.clone_rl_head:
             # Optional: clone a seperate RL head and initialize the model weights from finetuned LM head 
@@ -63,7 +64,7 @@ def run_training(args, train_data, validation_data):
         do_train=True,
         do_eval=False,
         do_predict=True,
-        evaluation_strategy='epoch',
+        evaluation_strategy=args.evaluation_strategy,
         eval_steps=0, 
 
         num_train_epochs=args.epochs,
@@ -86,7 +87,7 @@ def run_training(args, train_data, validation_data):
         local_rank=args.local_rank,
 
         deepspeed=args.deepspeed,
-        fp16=args.fp16
+        fp16=args.fp16,
         
     )
     

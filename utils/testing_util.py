@@ -597,20 +597,15 @@ def main(args):
 
     if args.data == "q" or args.data == "question":
         tmp = get_question(problem_list, prob_index)
-        print("q", tmp)
     elif args.data in ["solutions", "sol", "s",]:
         tmp = get_solutions(problem_list, prob_index)
-        print("sol", tmp)
     elif args.data == "starter":
         tmp = get_starter(problem_list, prob_index)
-        print("starter", tmp)
     elif args.data in ["test", "t"]:
         # test it with sols
         sols = get_solutions(problem_list, prob_index)
         tmp = run_test(problem_list, prob_index, test=sols[0])
 
-        print("results = ", tmp)
-        print("-2 = compile error, -1 is runtime error, False failed test, True passed test")
 
 if __name__ == "__main__":
     args = parse_args()

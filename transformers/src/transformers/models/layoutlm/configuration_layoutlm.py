@@ -16,7 +16,7 @@
 from collections import OrderedDict
 from typing import Any, List, Mapping, Optional
 
-from transformers import PretrainedConfig, PreTrainedTokenizer, TensorType
+from transformers.src.transformers import PretrainedConfig, PreTrainedTokenizer, TensorType
 
 from ... import is_torch_available
 from ...onnx import OnnxConfig, PatchingSpec

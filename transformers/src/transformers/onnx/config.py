@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
-from transformers import PretrainedConfig, PreTrainedTokenizer, TensorType, is_torch_available
+from transformers.src.transformers import PretrainedConfig, PreTrainedTokenizer, TensorType, is_torch_available
 
 from .utils import ParameterFormat, compute_effective_axis_dimension, compute_serialized_parameters_size
 

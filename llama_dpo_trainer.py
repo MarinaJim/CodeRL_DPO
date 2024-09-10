@@ -62,29 +62,24 @@ def main(args):
     training_args = DPOConfig(
         per_device_train_batch_size=4,
         gradient_accumulation_steps=4,
+        loss_type=args.loss_type,
         gradient_checkpointing =True,
-        max_grad_norm= 0.3,
         num_train_epochs=args.epochs, 
         save_steps= 100,
-        learning_rate=2e-4,
+        learning_rate=args.lr,
         bf16=True,
-        save_total_limit=3,
         logging_steps=1,
         output_dir=output_dir,
         optim="paged_adamw_32bit",
         lr_scheduler_type="cosine",
-        warmup_ratio=0.05,
         remove_unused_columns=False,
         max_prompt_length=1024,
         max_length=1024,
     )
+    print(training_args.learning_rate)
 
     peft_config = LoraConfig(
-        r=32,
-        lora_alpha=16,
         target_modules=find_all_linear_names(model),
-        lora_dropout=0.05,
-        bias="none",
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, peft_config)
@@ -115,5 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("--tokenizer_name", help="Name of tokenizer")
     parser.add_argument("--beta", type=float, help="the value of beta")
     parser.add_argument("--epochs", type=int, help="Number of training epochs")
+    parser.add_argument("--loss_type", default="sigmoid", help="Loss function")
+    parser.add_argument("--lr", type=float, help="learning rate")
     args = parser.parse_args()
     main(args)

@@ -15,7 +15,7 @@ parser.add_argument('--save_dir', default=None, type=str, help='path to save tra
 
 # Dataloading
 parser.add_argument('--train-path', default='data/APPS/train/', type=str, help='path to training data')
-parser.add_argument('--val_path', default='data/APPS/validation', type=str, help='path to validation data')
+parser.add_argument('--val_path', default=None, type=str, help='path to validation data')
 parser.add_argument('--sample-mode', default='uniform_sol', help='sampling output programs following a uniform distribution by program population')
 # Model
 parser.add_argument('--tuning_mode', default='critic', type=str, help='tuning mode for training LMs')
@@ -29,7 +29,7 @@ parser.add_argument('--lr', default=5e-5, type=float, help='training learning ra
 parser.add_argument('--batch-size-per-replica', default=4, type=int, help='batch size per GPU')
 parser.add_argument('--grad-acc-steps', default=8, type=int, help='number of training steps before each gradient update')
 parser.add_argument('--deepspeed', default = None, type=str, help='path to deepspeed configuration file; set None if not using deepspeed')
-parser.add_argument('--fp16', default=True, action='store_true', help='set 16-bit training to reduce memory usage')
+parser.add_argument('--fp16', default=False, action='store_true', help='set 16-bit training to reduce memory usage')
 parser.add_argument('--local_rank', default=-1, type=int)
 parser.add_argument('--db', default=False, action='store_true', help='set to turn on debug mode i.e. using dummy small data split and only 1 data worker')
 

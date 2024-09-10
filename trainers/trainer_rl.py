@@ -27,7 +27,7 @@ import pdb
 
 
 # Integrations must be imported before ML frameworks:
-from transformers.integrations import (  # isort: split
+from transformers.src.transformers.integrations import (  # isort: split
     get_reporting_integration_callbacks,
     hp_params
 )
@@ -41,13 +41,13 @@ from torch.utils.data.distributed import DistributedSampler
 
 from huggingface_hub import Repository
 
-from transformers import __version__
-from transformers.configuration_utils import PretrainedConfig
-from transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
-from transformers.debug_utils import DebugOption, DebugUnderflowOverflow
-from transformers.deepspeed import deepspeed_init, is_deepspeed_zero3_enabled
-from transformers.dependency_versions_check import dep_version_check
-from transformers.file_utils import (
+from transformers.src.transformers.__init__ import __version__
+from transformers.src.transformers.configuration_utils import PretrainedConfig
+from transformers.src.transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
+from transformers.src.transformers.debug_utils import DebugOption, DebugUnderflowOverflow
+from transformers.src.transformers.deepspeed import deepspeed_init, is_deepspeed_zero3_enabled
+from transformers.src.transformers.dependency_versions_check import dep_version_check
+from transformers.src.transformers.file_utils import (
     CONFIG_NAME,
     WEIGHTS_NAME,
     get_full_repo_name,
@@ -57,12 +57,12 @@ from transformers.file_utils import (
     is_sagemaker_dp_enabled,
     is_sagemaker_mp_enabled,
 )
-from transformers.modelcard import TrainingSummary
-from transformers.modeling_utils import PreTrainedModel, unwrap_model
-from transformers.models.auto.modeling_auto import MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES
-from transformers.optimization import Adafactor, AdamW, get_scheduler
-from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-from transformers.trainer_callback import (
+from transformers.src.transformers.modelcard import TrainingSummary
+from transformers.src.transformers.modeling_utils import PreTrainedModel, unwrap_model
+from transformers.src.transformers.models.auto.modeling_auto import MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES
+from transformers.src.transformers.optimization import Adafactor, AdamW, get_scheduler
+from transformers.src.transformers.tokenization_utils_base import PreTrainedTokenizerBase
+from transformers.src.transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
     PrinterCallback,
@@ -71,7 +71,7 @@ from transformers.trainer_callback import (
     TrainerControl,
     TrainerState,
 )
-from transformers.trainer_pt_utils import (
+from transformers.src.transformers.trainer_pt_utils import (
     DistributedLengthGroupedSampler,
     DistributedSamplerWithLoop,
     DistributedTensorGatherer,
@@ -91,7 +91,7 @@ from transformers.trainer_pt_utils import (
     nested_xla_mesh_reduce,
     reissue_pt_warnings,
 )
-from transformers.trainer_utils import (
+from transformers.src.transformers.trainer_utils import (
     PREFIX_CHECKPOINT_DIR,
     BestRun,
     EvalLoopOutput,
@@ -109,8 +109,8 @@ from transformers.trainer_utils import (
     set_seed,
     speed_metrics,
 )
-from transformers.training_args import ParallelMode, TrainingArguments
-from transformers.utils import logging
+from transformers.src.transformers.training_args import ParallelMode, TrainingArguments
+from transformers.src.transformers.utils import logging
 
 
 _is_torch_generator_available = False
@@ -240,7 +240,7 @@ class Trainer_RL:
 
     """
 
-    from transformers.trainer_pt_utils import _get_learning_rate, log_metrics, metrics_format, save_metrics, save_state
+    from transformers.src.transformers.trainer_pt_utils import _get_learning_rate, log_metrics, metrics_format, save_metrics, save_state
 
     def __init__(
         self,
@@ -296,12 +296,11 @@ class Trainer_RL:
                     FutureWarning,
                 )
             self.model_init = model_init
-
         if hasattr(model, "is_parallelizable") and model.is_parallelizable and model.model_parallel:
             self.is_model_parallel = True
         else:
             self.is_model_parallel = False
-
+        sys.stdout.flush()
         # Setup Sharded DDP training
         self.sharded_ddp = None
         if len(args.sharded_ddp) > 0:
@@ -328,24 +327,23 @@ class Trainer_RL:
             or ((args.fp16_full_eval or args.bf16_full_eval) and not args.do_train)
         ):
             self.place_model_on_device = False
-
         default_collator = default_data_collator if tokenizer is None else DataCollatorWithPadding(tokenizer)
         self.data_collator = data_collator if data_collator is not None else default_collator
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
-
         if self.place_model_on_device:
+            print("now it will lag")
+            sys.stdout.flush()
+
             self._move_model_to_device(model, args.device)
 
         # Force n_gpu to 1 to avoid DataParallel as MP will manage the GPUs
         if self.is_model_parallel:
             self.args._n_gpu = 1
-
         # later use `self.model is self.model_wrapped` to check if it's wrapped or not
         self.model_wrapped = model
         self.model = model
-
         self.compute_metrics = compute_metrics
         self.optimizer, self.lr_scheduler = optimizers
         if model_init is not None and (self.optimizer is not None or self.lr_scheduler is not None):
@@ -353,6 +351,7 @@ class Trainer_RL:
                 "Passing a `model_init` is incompatible with providing the `optimizers` argument. "
                 "You should subclass `Trainer` and override the `create_optimizer_and_scheduler` method."
             )
+        
         default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(self.args.report_to)
         callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
         self.callback_handler = CallbackHandler(
@@ -975,8 +974,9 @@ class Trainer_RL:
             kwargs:
                 Additional keyword arguments used to hide deprecated arguments
         """
+        print("Start")
+        sys.stdout.flush()
         resume_from_checkpoint = None if not resume_from_checkpoint else resume_from_checkpoint
-
         # memory metrics - must set up as early as possible
         self._memory_tracker.start()
 
@@ -988,6 +988,8 @@ class Trainer_RL:
         # the following is a workaround:
         if (args.fp16_full_eval or args.bf16_full_eval) and not args.do_train:
             self._move_model_to_device(self.model, args.device)
+        print("to device")
+        sys.stdout.flush()
 
         if "model_path" in kwargs:
             resume_from_checkpoint = kwargs.pop("model_path")
@@ -1000,7 +1002,8 @@ class Trainer_RL:
             raise TypeError(f"train() received got unexpected keyword arguments: {', '.join(list(kwargs.keys()))}.")
         # This might change the seed so needs to run first.
         self._hp_search_setup(trial)
-
+        print("before reinit")
+        sys.stdout.flush()
         # Model re-init
         model_reloaded = False
         if self.model_init is not None:
@@ -1010,7 +1013,7 @@ class Trainer_RL:
             model_reloaded = True
             # Reinitializes optimizer and scheduler
             self.optimizer, self.lr_scheduler = None, None
-
+        print("before checkpoint loading")
         # Load potential model checkpoint
         if isinstance(resume_from_checkpoint, bool) and resume_from_checkpoint:
             resume_from_checkpoint = get_last_checkpoint(args.output_dir)
@@ -1213,7 +1216,7 @@ class Trainer_RL:
                 # We just need to begin an iteration to create the randomization of the sampler.
                 for _ in train_dataloader:
                     break
-        logger.info("Starting the epochs loop")
+        print("Starting the epochs loop")
         sys.stdout.flush()
         for epoch in range(epochs_trained, num_train_epochs):
             if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
@@ -1351,7 +1354,7 @@ class Trainer_RL:
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
             self._maybe_log_save_evaluate(tr_loss, tr_rl_loss, tr_acc, model, trial, epoch, ignore_keys_for_eval)
 
-            if DebugOption.TPU_METRICS_DEBUG in per_device_train_batch_size.debug:
+            if DebugOption.TPU_METRICS_DEBUG in self.args.per_device_train_batch_size.debug:
 
                 logger.warning(
                     "You enabled PyTorch/XLA debug metrics but you don't have a TPU "

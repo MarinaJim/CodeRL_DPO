@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 all_outputs = []
-model_dir = "outputs/dpo_results/checkpoint-1ep-4bs-1ga-2e-5-originalapps-0.1-1ep-threshold1-100x3/"
+model_dir = "/storage/athene/work/sakharova/CodeRL_DPO/outputs/results_for_presentation/codet5/sft_1ep_dpo_10ep_1000_lr_2e-6"
 results_dir = os.path.join(model_dir, "test_results")
 distribution_plot_path = os.path.join(model_dir, "test_results_dist.jpg")
 results = sorted(os.listdir(results_dir))
@@ -17,7 +17,7 @@ for i in results:
         all_outputs.append(output[i]["results"])
     except EOFError:
         errors += 1
-        
+
 sum_outputs = sum([sum(outputs) for outputs in all_outputs])
 total_outputs = sum(len(outputs) for outputs in all_outputs)
 mean_acc =  sum_outputs / total_outputs 
