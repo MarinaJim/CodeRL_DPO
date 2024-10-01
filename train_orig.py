@@ -84,12 +84,14 @@ def run_training(args, train_data):
         fp16=args.fp16,
         
     )
+    include_gt = args.include_gt == "True"
     if args.tuning_mode in ['critic', 'rl']:
         trainer = Trainer_RL(
             model=model,
             args=training_args,
             train_dataset=train_data,
             tuning_mode=args.tuning_mode,
+            include_gt = include_gt
         )
     else:
         trainer = Trainer(

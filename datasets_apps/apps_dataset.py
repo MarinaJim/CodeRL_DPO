@@ -367,11 +367,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
     
 
 def get_custom_dataset(dataset_config, tokenizer, split:str):
-    print("CUDA info")
-    torch.cuda.mem_get_info()
-    print()
-    print(dataset_config)
-    print()
+
     if split == "train":
         split_path = "data/APPS/train/"
     else:

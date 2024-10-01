@@ -13,7 +13,9 @@ def delete_comments(code: str):
     return without_comms
     
 
-def sample_chosen_rejected(path_to_test_results:str, path_to_codes:str, problem):
+def sample_chosen_rejected(path_to_test_results:str, 
+                           path_to_codes:str, problem,
+                           best_threshold, worst_threshold, samples_per_task):
     """
     Returns a dictionary of the following form:
     {
@@ -26,21 +28,20 @@ def sample_chosen_rejected(path_to_test_results:str, path_to_codes:str, problem)
         codes = json.load(f)
     with open(os.path.join(path_to_test_results, f"{problem}.pkl"), "rb") as f:
         test_results = pickle.load(f)
-
     for (result, sol) in zip(test_results[int(problem)]["results"], codes[problem]["code"]):
         results_and_sols.append({"result": result, "code": sol})
 
     chosen_rejected = []
-    for i in range(args.samples_per_task):
+    for i in range(samples_per_task):
         results_and_sols.sort(key=lambda x: x["result"], reverse=True)
         if results_and_sols[0]["result"] == results_and_sols[-1]["result"]:
             return None
-        if results_and_sols[0]["result"] < args.best_threshold and i == 0:
+        if results_and_sols[0]["result"] < best_threshold and i == 0:
             return None
         chosen = results_and_sols[0]["code"]
-
-        rejected_candidates = [result for result in results_and_sols[1:] if result["result"] != args.best_threshold]
-
+        rejected_candidates = [result for result in results_and_sols[1:] if result["result"] != best_threshold]
+        if all([rej["result"] < worst_threshold for rej in rejected_candidates]):
+            return None
         rejected = random.choice(rejected_candidates)["code"]
         results_and_sols = [res for res in results_and_sols if res["code"] != chosen and res["code"] != rejected]
         chosen = delete_comments(chosen)
@@ -49,7 +50,9 @@ def sample_chosen_rejected(path_to_test_results:str, path_to_codes:str, problem)
     return chosen_rejected
 
 
-def create_dpo_dataset_dict():
+def create_dpo_dataset_dict(path_to_codes, path_to_test_results,
+                             path_to_apps, samples_per_task, 
+                             max_len, best_threshold, worst_threshold):
     """
     Creates a preference dataset in the DPO-conform format.
     """
@@ -57,28 +60,33 @@ def create_dpo_dataset_dict():
     prompts = []
     chosen_output = []
     rejected_output = []
-    max_len = args.max_len
-    problems = os.listdir(args.path_to_test_results)
+    max_len = max_len
+    problems = os.listdir(path_to_test_results)
     random.shuffle(problems)
     for problem in problems:
         problem = problem[:-4]
         problem = "0"*(4-len(problem)) + problem
         with open(
-            os.path.join(args.path_to_data, problem, "question.txt"),
+            os.path.join(path_to_apps, problem, "question.txt"),
             "r",
             encoding="utf-8",
         ) as f:
             prompt = f.read()
         problem = str.lstrip(problem, "0")
         try:
-            sample = sample_chosen_rejected(args.path_to_test_results, args.path_to_codes, problem)
-            if sample is None:
+            sample = sample_chosen_rejected(path_to_test_results, 
+                                            path_to_codes,
+                                            problem, 
+                                            best_threshold, 
+                                            worst_threshold,
+                                            samples_per_task)
+            if sample == None:
                 continue
             chosen_output.extend([s["chosen"] for s in sample])
             rejected_output.extend([s["rejected"] for s in sample])
             for _ in range(len(sample)):
                 prompts.append(prompt)
-            if len(prompts) == max_len * args.samples_per_task:
+            if len(prompts) == max_len * samples_per_task:
                 break
         except Exception as e:
             print(e)
@@ -96,18 +104,25 @@ def main(args):
     """
     Creates a DPO dataset and saves it into a file.
     """
-    dpo_dataset_dict = create_dpo_dataset_dict()
+    dpo_dataset_dict = create_dpo_dataset_dict(args.path_to_codes,
+                                                args.path_to_test_results,
+                                                args.path_to_apps,
+                                                args.samples_per_task,
+                                                args.max_len,
+                                                args.best_threshold,
+                                                args.worst_threshold)
     with open(args.path_to_dpo, "w", encoding="utf-8") as f:
         json.dump(dpo_dataset_dict, f)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-pd", "--path_to_data", help="Path to APPS dataset")
+    parser.add_argument("-pd", "--path_to_apps", help="Path to APPS dataset")
     parser.add_argument("-pt", "--path_to_test_results", 
                         help="Path to test results of codes generated by the model")
     parser.add_argument("-pdpo", "--path_to_dpo", help="Path to future DPO dataset")
-    parser.add_argument("-bt", "--best_threshold", type=float, help="Threshold for the best code. Value from 0 to 1")
+    parser.add_argument("-bt", "--best_threshold", type=float, help="Minimum threshold for the best code. Value from -2 to 1")
+    parser.add_argument("-wt", "--worst_threshold", type=float, default=-2, help="Maximum threshold for the worst code. Value from -2 to 1")
     parser.add_argument("-pc", "--path_to_codes", help="path to generated codes")
     parser.add_argument("--max_len", type=int, help="Length of the DPO dataset")
     parser.add_argument("--samples_per_task", type=int, help="How many examples to take per one task")

@@ -5,7 +5,7 @@ import math
 
 MIN_EPOCH = 0
 
-def get_losses(path):
+def get_losses_from_txt(path):
     with open(path, "r") as f:
         train_output = f.read()
     train_output = train_output.split("\n")
@@ -22,6 +22,7 @@ def get_losses(path):
 
     return losses, val_losses
 
+
 def get_grouped_losses(losses):
     grouped_losses = {}
     for loss in losses:
@@ -36,14 +37,16 @@ def get_avg_losses(grouped_losses):
     avg_losses = [sum(losses) / len(losses) for losses in grouped_losses.values()]
     return avg_losses
 
-def plot_and_save(x_data, y_data, val_data, fig_path):
+def plot_and_save(x_data, y_data, val_data, fig_path, title):
 
-    plt.plot(x_data, y_data, label='train losses')
-    plt.plot(x_data, val_data, label='valid losses')
+    plt.figure(figsize=(6, 5))
+    plt.plot(x_data, y_data, label='Train loss')
+    plt.plot(x_data, val_data, label='Validation loss')
     plt.xlabel("Epoch")
     plt.xticks(list(x_data))
     plt.ylabel("Cross-entropy loss")
     plt.legend()
+    plt.title(title)
     plt.savefig(fig_path)
 
 

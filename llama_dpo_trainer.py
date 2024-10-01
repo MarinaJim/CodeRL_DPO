@@ -6,19 +6,6 @@ from transformers import AutoTokenizer, TrainingArguments, AutoModelForCausalLM,
 from datasets import load_dataset
 from trl import DPOTrainer, DPOConfig
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
-import bitsandbytes as bnb
-
-def find_all_linear_names(model):
-    cls = bnb.nn.Linear4bit #if args.bits == 4 else (bnb.nn.Linear8bitLt if args.bits == 8 else torch.nn.Linear)
-    lora_module_names = set()
-    for name, module in model.named_modules():
-        if isinstance(module, cls):
-            names = name.split('.')
-            lora_module_names.add(names[0] if len(names) == 1 else names[-1])
-
-    if 'lm_head' in lora_module_names:  # needed for 16-bit
-        lora_module_names.remove('lm_head')
-    return list(lora_module_names)
 
 def main(args):
     output_dir=args.output_dir
@@ -33,7 +20,6 @@ def main(args):
     )
 
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, quantization_config=bnb_config)
-    model.config.use_cache = False
     model = prepare_model_for_kbit_training(model)
 
     model_ref = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, quantization_config=bnb_config)
@@ -78,8 +64,9 @@ def main(args):
     )
     print(training_args.learning_rate)
 
+ 
     peft_config = LoraConfig(
-        target_modules=find_all_linear_names(model),
+        target_modules="all-linear",
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, peft_config)
@@ -100,7 +87,6 @@ def main(args):
 
     output_dir = os.path.join(output_dir, "final_checkpoint")
     dpo_trainer.model.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

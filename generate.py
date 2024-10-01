@@ -15,7 +15,6 @@ from tqdm import tqdm
 import pickle as pkl 
 import numpy as np 
 from collections import Counter 
-from transformers import T5ForConditionalGeneration, RobertaTokenizer, AutoTokenizer, AutoModelForCausalLM
 
 import datasets_apps.utils as dsutils
 sys.set_int_max_str_digits(0)
@@ -119,6 +118,8 @@ def main(args):
     print(problems[:5])
 
     # Set up model
+    print("tokenizer:")
+    print(args.tokenizer_name)
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     print("Loading model from {}...".format(args.model_name))
     if "codet5" in args.model_name or "t5_dpo_models" in args.model_name:
@@ -145,8 +146,6 @@ def main(args):
     for index, problem in tqdm(enumerate(problems), ncols=0, total=len(problems)):
         try:
             prob_path = os.path.join(problem)
-            print(f"problem path = {prob_path}")
-            
             problem_id = int(problem.split('/')[-1])
             
             '''
@@ -157,7 +156,6 @@ def main(args):
                 continue 
             '''
             if os.path.exists(os.path.join(args.output_path, f"{problem_id}.json")):
-                print(f"Path {problem_id} exists")
                 continue
             test_case_path = os.path.join(prob_path, "input_output.json")
             prompt_path = os.path.join(prob_path, "question.txt")
@@ -175,7 +173,6 @@ def main(args):
             else:
                 input_text = generate_prompt(args, test_case_path, prompt_path, solutions_path, 
                                             tokenizer, starter_path)
-
             with torch.no_grad():
                 if args.critic_scores:
                     text_tensor = torch.tensor(input_texts).to(device)
@@ -194,11 +191,19 @@ def main(args):
                                             'pred_error_type': error_preds.cpu().numpy(),
                                             'error_hidden_states': error_hidden_states.cpu().numpy()}
                     
-                    if args.gt_solutions:
-                        scores_loc = os.path.join(prob_path,  "solutions_critic_scores.pkl")
+                    if args.use_output_path:
+                        if args.gt_solutions:
+                            scores_loc = os.path.join(args.output_path, f"{problem_id}_solutions_critic_scores.pkl")
+                        else:
+                            scores_loc = os.path.join(args.output_path, f"{problem_id}_gen_solutions_critic_scores.pkl")
                     else:
-                        scores_loc = os.path.join(prob_path,  "gen_solutions_critic_scores.pkl")
-                        
+                        if args.gt_solutions:
+                            scores_loc = os.path.join(prob_path, "solutions_critic_scores.pkl")
+                        else:
+                            scores_loc = os.path.join(prob_path, "gen_solutions_critic_scores.pkl")
+                    
+                    print(f"saving to", scores_loc)
+                    sys.stdout.flush()
                     pkl.dump(saved_critic_scores, open(scores_loc, 'wb'))
                         
                 else:
@@ -257,5 +262,11 @@ def main(args):
 if __name__ == "__main__":
     
     from configs.generate_configs import * 
-    
+    print(args.critic_scores)
+    if args.critic_scores is None:
+        from transformers import T5ForConditionalGeneration, RobertaTokenizer, AutoTokenizer, AutoModelForCausalLM
+    else:
+        from transformers.src.transformers import T5ForConditionalGeneration, RobertaTokenizer, AutoTokenizer, AutoModelForCausalLM
+        
+
     main(args)

@@ -19,8 +19,9 @@ import datasets_apps.utils as dsutils
 from transformers.src.transformers.models.auto import AutoTokenizer
 
 class APPSBaseDataset(torch.utils.data.Dataset):
-    def __init__(self, dataroot, problem_dirs, model, max_tokens, sample_mode, 
-                 tuning_mode, max_src_tokens, relative_returns):
+    def __init__(self, dataroot, problem_dirs, model, tokenizer, max_tokens, sample_mode, 
+                 tuning_mode, max_src_tokens, relative_returns, include_gt, critic_scores_root):
+        self.critic_scores_root = critic_scores_root
         self.dataroot = dataroot
         self.problem_dirs = problem_dirs 
 
@@ -28,7 +29,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         self.sample_mode = sample_mode
         self.tuning_mode = tuning_mode
         self.relative_returns = relative_returns
-        
+        self.include_gt = include_gt
         self.max_tokens = max_tokens
         self.max_src_tokens = max_src_tokens
 
@@ -37,7 +38,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         self.initialize()
 
         if self.model in ['codet5-base', 'codet5-large']:
-            self.tokenizer = AutoTokenizer.from_pretrained('Salesforce/codet5-base')
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
        
     def load_gen_samples(self, sols, answer_type, starter_code, question_str):
         samples = []
@@ -76,7 +77,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         return samples 
     
     def get_gt_info(self):
-        return (1, None)
+        return (1, "None")
 
     def get_baseline_error_type(self, sols): 
         return dsutils.get_error_type(sols[0]['result'])
@@ -106,17 +107,18 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         for problem_name in tqdm(self.problem_dirs):   
             if self.tuning_mode in ['critic']:                
                 gen_sols_fname = [os.path.join(self.dataroot, problem_name, "gen_solutions.json")]       
-
             elif self.tuning_mode in ['rl']:
-                gen_sols_fname = [os.path.join(self.dataroot, problem_name, "gen_solutions_critic_scores.pkl")]   
-                
+                gen_sols_fname = [os.path.join(self.critic_scores_root,  f"{str(int(problem_name))}_gen_solutions_critic_scores.pkl")]   
                 if self.relative_returns: 
                     baseline_fname = os.path.join(self.dataroot, problem_name, "baseline_solutions.json")
             question_fname = os.path.join(self.dataroot, problem_name, "question.txt")
-            sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")            
-            if (not os.path.isfile(question_fname)) or (not os.path.isfile(sols_fname)):
-                skipped_problems.append(problem_name)
-                continue
+            if self.include_gt:
+                sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")            
+                if (not os.path.isfile(question_fname)) or (not os.path.isfile(sols_fname)):
+                    print(sols_fname)
+                    print(question_fname)
+                    skipped_problems.append(problem_name)
+                    continue
                 
             # Read the question description
             with open(question_fname, 'r') as f:
@@ -130,27 +132,28 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             else:
                 answer_type = "\nUse Standard Input format\n"
                 starter_code = ""
-            sols_str_list = json.load(open(sols_fname, 'r'))
-            gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
-            all_samples += gt_samples 
+            if self.include_gt:
+                sols_str_list = json.load(open(sols_fname, 'r'))
+                gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
+                all_samples += gt_samples 
             # Read all the solutions
             if self.tuning_mode in ['critic']: 
+
                 for fname in gen_sols_fname:
                     if os.path.exists(fname): 
                         gen_sols = json.load(open(fname, 'r'))
+                        sys.stdout.flush()
                         samples, info = self.load_gen_samples(gen_sols, answer_type, starter_code, question_str) 
                         self.update_error_stat(info)
                         gen_samples += samples
                         samples_info += info
-                
                 # also include ground-truth samples to train critic model; assume success test outcomes 
-                gen_samples += gt_samples
-                info = [self.get_gt_info() for s in gt_samples]
-                samples_info += info
+                if self.include_gt:
+                    gen_samples += gt_samples
+                    info = [self.get_gt_info() for s in gt_samples]
+                    samples_info += info
 
             elif self.tuning_mode in ['rl']: 
-                print("noppe")
-                sys.stdout.flush()
                 if self.relative_returns:
                     baseline_sample = json.load(open(baseline_fname, 'r'))
                     baseline_error_type = self.get_baseline_error_type(baseline_sample)
@@ -210,10 +213,13 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             inputs = self.sample_task(raw_samples, 'gen')
          
         elif self.tuning_mode in ['rl']:
-            gt_sample_idx = random.randint(0, len(self.samples)-1)
-            raw_gt_samples = self.pack_samples(gt_sample_idx)
-            inputs = self.sample_task(raw_gt_samples)
-            
+            if self.include_gt:
+                gt_sample_idx = random.randint(0, len(self.samples)-1)
+                raw_gt_samples = self.pack_samples(gt_sample_idx)
+                inputs = self.sample_task(raw_gt_samples)
+            else:
+                inputs = {}
+                
             item = self.gen_samples[idx]
             info = self.samples_info[idx]
 
@@ -365,7 +371,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             rewards *= dsutils.get_reward_from_error_type(gt_error)
         
         # masking rewards 
-        reward_mask = (error_logit == -np.float('Inf'))[:,0]
+        reward_mask = (error_logit == -float('Inf'))[:,0]
         rewards[reward_mask] = 0.0
         rl_label_ids = np.array(labels)
         rl_label_ids[reward_mask] = -100 

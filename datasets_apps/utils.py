@@ -59,10 +59,10 @@ def get_error_type(result, binary=False):
     elif result == -1:
         return 1
     # Failed unit tests 
-    elif result == False: 
+    elif result >= 0 and result < 1: 
         return 2 
     # Passed all unit tests 
-    elif result == True: 
+    elif result ==1: 
         return 3 
     else:
         raise NotImplementedError()

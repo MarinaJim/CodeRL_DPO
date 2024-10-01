@@ -15,9 +15,9 @@ parser.add_argument("--model_name", type=str, help='Name of the pretrained model
 #parser.add_argument("--model_path", default=None, type=str, help="Path to cached model")
 parser.add_argument("--tokenizer_name", type=str, help='Name of the tokenizer') 
 parser.add_argument("--tokenizer_path", type=str, help='Path to cached tokenizer') 
-parser.add_argument("--critic_scores", default=False, action='store_true', help='if model is a critic model, enable this to output critic scores')
+parser.add_argument("--critic_scores", default=None, action='store_true', help='if model is a critic model, enable this to output critic scores')
 parser.add_argument("--binary_prediction", default=False, action='store_true', help='if model is a critic model, enable this for binary classification i.e. passed test or failed test only')
-
+parser.add_argument("--use_output_path", default=False, action='store_true', help="whether or not to save the results into the output path. If not set, will save in test path")
 parser.add_argument("--num_seqs", default=5, type=int, help='Number of total generated programs per test sample')
 parser.add_argument('--num_seqs_per_iter', default=5, type=int, help='Number of possible minibatch to generate programs per iteration, depending on GPU memory')
 

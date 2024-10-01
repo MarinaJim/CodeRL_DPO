@@ -12,7 +12,8 @@ parser = argparse.ArgumentParser(description="Training a critic model for code g
 parser.add_argument('--model', default='codet5-large-ntp-py', type=str, help='type of transformers model as model backbone')
 parser.add_argument('--model_path', default=None, type=str, help='path to model backbone pretrained weights') 
 parser.add_argument('--save_dir', default=None, type=str, help='path to save trained critic model checkpoints') 
-
+parser.add_argument('--include_gt', default="True", type=str, help="Whether to include the ground truth samples or not")
+parser.add_argument('--critic_scores_root', default="", type=str, help="Root of the directory with critic scores")
 # Dataloading
 parser.add_argument('--train-path', default='data/APPS/train/', type=str, help='path to training data')
 parser.add_argument('--val_path', default=None, type=str, help='path to validation data')
