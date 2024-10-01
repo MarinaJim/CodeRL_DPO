@@ -21,32 +21,36 @@
 #SBATCH --time=1-00:00:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
-#SBATCH --partition=yolo
+#SBATCH --partition=gpu-athene
 #
 # ACCOUNT to use (default account for athene-only people is "athene-researcher" and therefore does not need to be specified - check your accounts with command: "sshare -U")
 ###SBATCH --account=athene-student
 #
 # QOS to use (default QOS for everyone is "gpu" and therefore does not need to be specified)
-###SBATCH --qos=yolo
+###SBATCH --qos=gpu
 #
 # Define standard output files - make sure those files exist
 #SBATCH --output=/storage/athene/work/sakharova/create_dpo_dataset.output
 #SBATCH --error=/storage/athene/work/sakharova/create_dpo_dataset.error
 
-path_to_apps=data/APPS/train
+path_to_data=data/APPS/train
 # clean means without appended "import" commands
 # bestworst means rejected code is the one with the lowest score
 # fixed - only 1 and lower than 1
-path_to_dpo=data/APPS/codet5_dpo_100.json
-path_to_test_results=/storage/athene/work/sakharova/CodeRL_DPO/outputs/warmup_codes_for_dpo/codet5_1ep-4bs-1ga-2e-5/train/test_results
-path_to_codes=/storage/athene/work/sakharova/CodeRL_DPO/outputs/warmup_codes_for_dpo/codet5_1ep-4bs-1ga-2e-5/train/codes
+path_to_dpo=data/APPS/llama_dpo_1000_bad_and_good.json
+
+path_to_test_results=/storage/athene/work/sakharova/CodeRL_DPO/outputs/warmup_codes_for_dpo/llama13b_python_ft_train/test_results
+path_to_codes=/storage/athene/work/sakharova/CodeRL_DPO/outputs/warmup_codes_for_dpo/llama13b_python_ft_train/codes
 best_threshold=1
-worst_threshold=-2
-max_len=100
+worst_threshold=0
+max_len=1000
 samples_per_task=1
 
 python create_preference_dataset/create_dpo_dataset.py \
-    --path_to_apps $path_to_apps --path_to_dpo $path_to_dpo \
+    --path_to_data $path_to_data --path_to_dpo $path_to_dpo \
     --path_to_test_results $path_to_test_results --path_to_codes $path_to_codes \
     --best_threshold $best_threshold --worst_threshold $worst_threshold\
     --max_len $max_len --samples_per_task $samples_per_task
+
+python convert_dataset_to_llama.py \
+    --path_to_dataset $path_to_dpo --path_to_llama_dataset $path_to_dpo

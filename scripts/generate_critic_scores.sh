@@ -6,7 +6,7 @@
 # You can shorten this example script and adapt to create your own one.
 #
 # Give your job a proper name
-#SBATCH --job-name=sm_run_dpo
+#SBATCH --job-name=ll_val_unit_tests
 #
 # How many cpus to request
 #SBATCH --cpus-per-task=16
@@ -18,35 +18,30 @@
 #SBATCH --gres=gpu:2
 #
 # Limit runtime d-hh:mm:ss - here limited to 1min
-#SBATCH --time=0-20:00:00
+#SBATCH --time=1-00:00:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
 #SBATCH --partition=yolo
 #
 # ACCOUNT to use (default account for athene-only people is "athene-researcher" and therefore does not need to be specified - check your accounts with command: "sshare -U")
-###SBATCH --account=athene-researcher
+###SBATCH --account=athene-student
 #
 # QOS to use (default QOS for everyone is "gpu" and therefore does not need to be specified)
 ###SBATCH --qos=yolo
 #
 # Define standard output files - make sure those files exist
-#SBATCH --output=/storage/athene/work/sakharova/codet5_sft_1ep_dpo_1ep_100_lr_2e-6.output
-#SBATCH --error=/storage/athene/work/sakharova/codet5_sft_1ep_dpo_1ep_100_lr_2e-6.errror
+#SBATCH --output=/storage/athene/work/sakharova/generate_critic_scores_train.output
+#SBATCH --error=/storage/athene/work/sakharova/generate_critic_scores_train.error
 
-module load cuda/12.2
+critic_path=exps/critic_models/codet5-base-all-1ep/final_checkpoint
+tokenizer_name=Salesforce/codet5-base
+test_path=data/APPS/critic_train_se_only
 
-path_to_dataset=data/APPS/codet5_dpo_100.json
-tokenizer_name=Salesforce/codet5-large-ntp-py
-model_path=exps/codet5-large-ntp-py-2e-5-epoch0-traineval/checkpoint-14654
-output_dir=outputs/t5_dpo_models/sft_1ep_dpo_1ep_100_2e-6
-#tokenizer_name="codellama/CodeLlama-13b-Python-hf"
+output_path=outputs/results_for_presentation/codet5-critic/train/codet5-base-REAL-all-1ep
 
-beta=0.1
-epochs=1
-loss_type=sigmoid
-lr=2e-6
-
-python my_dpo_trainer.py --path_to_dataset $path_to_dataset --model_path $model_path \
-    --output_dir $output_dir --tokenizer_name $tokenizer_name \
-    --beta $beta --epochs $epochs --loss_type $loss_type --lr $lr \
-#    --path_to_eval_dataset $path_to_eval_dataset
+CUDA_VISIBLE_DEVICES=0 python generate.py \
+    --model_name ${critic_path} \
+    --tokenizer_name ${tokenizer_name} \
+    --test_path ${test_path} \
+    --output_path ${output_path} \
+    --critic_scores --use_output_path

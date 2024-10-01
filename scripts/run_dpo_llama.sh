@@ -6,19 +6,19 @@
 # You can shorten this example script and adapt to create your own one.
 #
 # Give your job a proper name
-#SBATCH --job-name=sm_run_dpo
+#SBATCH --job-name=llamaipo
 #
 # How many cpus to request
 #SBATCH --cpus-per-task=16
 #
 # How much memory to request
-#SBATCH --mem=512GB
+#SBATCH --mem=1TB
 #
 # How many gpus to request
 #SBATCH --gres=gpu:2
 #
 # Limit runtime d-hh:mm:ss - here limited to 1min
-#SBATCH --time=0-20:00:00
+#SBATCH --time=2-00:00:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
 #SBATCH --partition=yolo
@@ -30,23 +30,19 @@
 ###SBATCH --qos=yolo
 #
 # Define standard output files - make sure those files exist
-#SBATCH --output=/storage/athene/work/sakharova/codet5_sft_1ep_dpo_1ep_100_lr_2e-6.output
-#SBATCH --error=/storage/athene/work/sakharova/codet5_sft_1ep_dpo_1ep_100_lr_2e-6.errror
+#SBATCH --output=/storage/athene/work/sakharova/sft_1ep_dpo_10ep_1000_2e-4_classic_AGAIN.output
+#SBATCH --error=/storage/athene/work/sakharova/sft_1ep_dpo_10ep_1000_2e-4_classic_AGAIN.error
 
-module load cuda/12.2
-
-path_to_dataset=data/APPS/codet5_dpo_100.json
-tokenizer_name=Salesforce/codet5-large-ntp-py
-model_path=exps/codet5-large-ntp-py-2e-5-epoch0-traineval/checkpoint-14654
-output_dir=outputs/t5_dpo_models/sft_1ep_dpo_1ep_100_2e-6
-#tokenizer_name="codellama/CodeLlama-13b-Python-hf"
-
+#module load cuda/12.2
+path_to_dataset=data/APPS/llama_dpo_1000.json
+model_path="exps/CodeLlama-13B-Python-hf-finetuned"
+output_dir="outputs/llama_dpo_models/sft_1ep_dpo_10ep_1000_2e-4_classic_AGAIN"
+tokenizer_name="codellama/CodeLlama-13b-Python-hf"
 beta=0.1
-epochs=1
+epochs=10
 loss_type=sigmoid
-lr=2e-6
+lr=2e-4
 
-python my_dpo_trainer.py --path_to_dataset $path_to_dataset --model_path $model_path \
+python llama_dpo_trainer.py --path_to_dataset $path_to_dataset --model_path $model_path \
     --output_dir $output_dir --tokenizer_name $tokenizer_name \
-    --beta $beta --epochs $epochs --loss_type $loss_type --lr $lr \
-#    --path_to_eval_dataset $path_to_eval_dataset
+    --beta $beta --epochs $epochs --loss_type $loss_type --lr $lr
