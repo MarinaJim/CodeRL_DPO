@@ -20,7 +20,8 @@ from transformers.src.transformers.models.auto import AutoTokenizer
 
 class APPSBaseDataset(torch.utils.data.Dataset):
     def __init__(self, dataroot, problem_dirs, model, tokenizer, max_tokens, sample_mode, 
-                 tuning_mode, max_src_tokens, relative_returns, include_gt, critic_scores_root):
+                 tuning_mode, max_src_tokens, relative_returns, include_gt, critic_scores_root, 
+                 max_gt_per_task, max_rl_per_task):
         self.critic_scores_root = critic_scores_root
         self.dataroot = dataroot
         self.problem_dirs = problem_dirs 
@@ -32,6 +33,9 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         self.include_gt = include_gt
         self.max_tokens = max_tokens
         self.max_src_tokens = max_src_tokens
+
+        self.max_gt_per_task = max_gt_per_task
+        self.max_rl_per_task = max_rl_per_task
 
         self.samples = []           
         self.all_error_types, self.all_error_subtypes, self.all_baseline_error_types = [], [], []
@@ -56,11 +60,13 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             
         return samples, info 
     
-    def load_rl_samples(self, sols, baseline_error_type): 
+    def load_rl_samples(self, sols, baseline_error_type, max_rl_per_task=None): 
         samples = []
         info = []
         
-        for idx, code in enumerate(sols['code']):   
+        for idx, code in enumerate(sols['code']):  
+            if max_rl_per_task is not None and idx >= max_rl_per_task:
+                break 
             samples.append((sols['prompt'][idx], code))
             info.append((sols['gt_error_type'][idx], sols['error_hidden_states'][idx], baseline_error_type))
             
@@ -110,7 +116,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             elif self.tuning_mode in ['rl']:
                 gen_sols_fname = [os.path.join(self.critic_scores_root,  f"{str(int(problem_name))}_gen_solutions_critic_scores.pkl")]   
                 if self.relative_returns: 
-                    baseline_fname = os.path.join(self.dataroot, problem_name, "baseline_solutions.json")
+                    baseline_fname = os.path.join(self.dataroot, problem_name, "gen_solutions.json")
             question_fname = os.path.join(self.dataroot, problem_name, "question.txt")
             if self.include_gt:
                 sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")            
@@ -135,6 +141,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             if self.include_gt:
                 sols_str_list = json.load(open(sols_fname, 'r'))
                 gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
+                if self.max_gt_per_task is not None and len(gt_samples) > self.max_gt_per_task:
+                    gt_samples = gt_samples[:self.max_gt_per_task]
                 all_samples += gt_samples 
             # Read all the solutions
             if self.tuning_mode in ['critic']: 
@@ -163,7 +171,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
                 for fname in gen_sols_fname: 
                     if os.path.exists(fname):
                         gen_sols = pkl.load(open(fname, 'rb'))
-                        samples, info = self.load_rl_samples(gen_sols, baseline_error_type) 
+                        samples, info = self.load_rl_samples(gen_sols, baseline_error_type, self.max_rl_per_task) 
                         self.update_error_stat_rl(info)
                         gen_samples += samples
                         samples_info += info

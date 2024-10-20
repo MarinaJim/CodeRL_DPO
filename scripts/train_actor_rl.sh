@@ -41,7 +41,7 @@ python \
     --fp16 \
     --tuning_mode rl --model codet5-large \
     --model_path exps/codet5-large-ntp-py-2e-5-epoch0-traineval/checkpoint-14654 \
-    --critic_scores_root outputs/results_for_presentation/codet5-critic/train/codet5-base-se-1ep \
+    --critic_scores_root outputs/results_for_presentation/codet5-critic/train/codet5-finetuned-critic-se-1ep \
     --tokenizer Salesforce/codet5-large-ntp-py --train-path data/APPS/critic_train_se_only \
-    --include_gt False --save_dir outputs/rl_models/nogt-1ep-2e-6-actor-codet5-ft-critic-codet5-base-se-1ep \
-    --relative_returns
+    --include_gt True --save_dir outputs/rl_models/1ep-4rl-2gt-2e-6-critic-coderl-ft-se-1ep \
+    --max_rl_per_task 4 --max_gt_per_task 2

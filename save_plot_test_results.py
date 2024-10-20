@@ -30,14 +30,42 @@ def get_difficulties_for_folder(model_dir, task_folder):
 
 def plot_difficulties(plot_folder, difficulties):
 
-    for model, total in zip(difficulties["model"], difficulties["total"]):
+    for model, total in zip(difficulties["method"], difficulties["total"]):
         plot_path = os.path.join(plot_folder, f"{model}.jpg")
         plt.hist([output for output in total], color="steelblue", edgecolor="black")
         plt.savefig(plot_path)
         plt.clf()
 
+def get_mean_values(all_results):
 
-def get_difficulties_for_all_folders(folder, task_folder):
+    for key in ["introductory", "interview", "competition", "total"]:
+        mean_values = []
+        for k in all_results[key]:
+            mean_values.append(sum(k) / len(k))
+        
+        all_results[key] = mean_values
+    return all_results
+
+def get_difficulties_for_all_folders_rl(folder, task_folder):
+    
+    all_results = {"critic": [], "epochs": [], "lr":[], "dataset":  [], "introductory": [], "interview": [], "competition": [], "total": []}
+    for model in os.listdir(folder):
+        difficulties = get_difficulties_for_folder(os.path.join(folder, model), task_folder)
+
+        
+        model = model.split("_")
+        all_results["epochs"].append(int(model[0].replace("ep", "")))
+        all_results["lr"].append(model[1])
+        all_results["critic"].append(model[2])
+        all_results["dataset"].append(model[3])
+
+
+        for key in difficulties.keys():
+            #mean_score = sum(difficulties[key]) / len(difficulties[key])
+            all_results[key].append(difficulties[key])
+    return all_results
+
+def get_difficulties_for_all_folders_dpo(folder, task_folder):
     
     all_results = {"method": [], "epochs": [], "samples":[],"lr":[], "beta":[], "dataset":  [], "introductory": [], "interview": [], "competition": [], "total": []}
     for model in os.listdir(folder):
@@ -62,8 +90,8 @@ def get_difficulties_for_all_folders(folder, task_folder):
             continue
 
         for key in difficulties.keys():
-            mean_score = sum(difficulties[key]) / len(difficulties[key])
-            all_results[key].append(mean_score)
+            #mean_score = sum(difficulties[key]) / len(difficulties[key])
+            all_results[key].append(difficulties[key])
     return all_results
 
 def save_for_folder(results, model_name):
@@ -77,11 +105,15 @@ def save_for_folder(results, model_name):
 
 def main():
     task_folder = "data/APPS/test"
-    #difficulties = get_difficulties_for_all_folders("outputs/results_for_presentation/codet5", task_folder)
-    #save_for_folder(difficulties, "codet5")
 
-    difficulties = get_difficulties_for_all_folders("outputs/results_for_presentation/llama", task_folder)
-    save_for_folder(difficulties, "llama")
+    for model_name in ["codet5-actor"]:
+        if model_name == "codet5-actor":
+            difficulties = get_difficulties_for_all_folders_rl(f"outputs/results_for_presentation/{model_name}", task_folder)
+        else:   
+            difficulties = get_difficulties_for_all_folders_dpo(f"outputs/results_for_presentation/{model_name}", task_folder)
+        #plot_difficulties("/storage/athene/work/sakharova/CodeRL_DPO/outputs/results_for_presentation/evaluation_metrics/mean_score_distribution", difficulties)
+        difficulties = get_mean_values(difficulties)
+        save_for_folder(difficulties, model_name)
 
 if __name__ == "__main__":
     main()

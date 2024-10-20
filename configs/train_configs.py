@@ -18,6 +18,8 @@ parser.add_argument('--critic_scores_root', default="", type=str, help="Root of 
 parser.add_argument('--train-path', default='data/APPS/train/', type=str, help='path to training data')
 parser.add_argument('--val_path', default=None, type=str, help='path to validation data')
 parser.add_argument('--sample-mode', default='uniform_sol', help='sampling output programs following a uniform distribution by program population')
+parser.add_argument('--max_gt_per_task', default=None, type=int, help='maximum #GT samples per task')
+parser.add_argument('--max_rl_per_task', default=None, type=int, help='maximim #RL samples per task')
 # Model
 parser.add_argument('--tuning_mode', default='critic', type=str, help='tuning mode for training LMs')
 parser.add_argument('--relative_returns', default=False, action='store_true', help='use relative returns against a baseline during RL')

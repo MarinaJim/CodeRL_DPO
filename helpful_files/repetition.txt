@@ -1,0 +1,57 @@
+
+
+def main():
+		n = int(input())
+		t = int(input())
+		if t >= int(''.join(map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,map(str,dict(str,map(str,dict(str,map(str,dict(str,dict(str,map(str,dict(str,map(str,dict(str,dict(str,dict(str,map(str(str(str,dict(str,dict(str,set(str,dict(str,dict(str,dict(str,str(str(str(str(str(str(str,list(str(str(' ',
+			str(str(str(
+		' '.join('', '
+		for l in map(str(tuple(l[1:[1,l[1:l[0]
+		r[0:l[1]
+		for r in r[0]
+		if r[0:l[0]
+		for l in r[0]
+		r[0]
+		r[0]
+		for l in r[0]
+		l[0]
+		r[0]
+		l[0]
+		r[0]
+		r[0]
+		r[0]
+		for l in r[0]
+		if l[0]
+		l[0]
+		for l[0]
+		l[0]
+		l[0]
+			l[0]
+		if l[0]
+		l[0]
+				l[0]
+		l[0]
+		l[0]
+		l[0]
+		l[0]
+		l[0]
+		l[0]
+			l[0]
+			l[0]
+		l[0]
+				for l[0]
+		l[0]
+							
+		l[0]
+							
+		l[0]
+						l[0]
+											
+							l[0]
+
+													
+																																					
+																
+																					
+								
+																																		

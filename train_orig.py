@@ -90,9 +90,7 @@ def run_training(args, train_data):
             model=model,
             args=training_args,
             train_dataset=train_data,
-            tuning_mode=args.tuning_mode,
-            include_gt = include_gt
-        )
+            tuning_mode=args.tuning_mode        )
     else:
         trainer = Trainer(
             model=model,
@@ -127,7 +125,9 @@ def get_dataset(args):
         tuning_mode=args.tuning_mode,
         include_gt=include_gt,
         relative_returns=args.relative_returns,
-        critic_scores_root = args.critic_scores_root
+        critic_scores_root = args.critic_scores_root,
+        max_gt_per_task=args.max_gt_per_task,
+        max_rl_per_task=args.max_rl_per_task
     )
 
     return train_data

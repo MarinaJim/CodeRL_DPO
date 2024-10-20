@@ -25,7 +25,7 @@ import datasets_apps.utils as dsutils
 
 class APPSBaseDataset(torch.utils.data.Dataset):
     def __init__(self, dataroot, problem_dirs, model, max_tokens, sample_mode, 
-                 tuning_mode, max_src_tokens, relative_returns, tokenizer):
+                 tuning_mode, max_src_tokens, relative_returns, tokenizer, max_gt_per_task):
         self.dataroot = dataroot
         self.problem_dirs = problem_dirs 
 
@@ -36,6 +36,8 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         
         self.max_tokens = max_tokens
         self.max_src_tokens = max_src_tokens
+
+        self.max_gt_per_task = max_gt_per_task
 
         self.samples = []           
         self.all_error_types, self.all_error_subtypes, self.all_baseline_error_types = [], [], []
@@ -107,7 +109,7 @@ class APPSBaseDataset(torch.utils.data.Dataset):
         all_samples_dict = {} 
         print(f"Loading {len(self.problem_dirs)} problems from {self.dataroot}.")
 
-        for problem_name in tqdm(self.problem_dirs):
+        for problem_name in tqdm(self.problem_dirs)[:1000]:
             question_fname = os.path.join(self.dataroot, problem_name, "question.txt")
             sols_fname = os.path.join(self.dataroot, problem_name, "solutions.json")
             if (not os.path.isfile(question_fname)) or (not os.path.isfile(sols_fname)):
@@ -131,13 +133,13 @@ class APPSBaseDataset(torch.utils.data.Dataset):
             # get ground truth samples from the list of solutions, answer type, started code and question
             # one sample here is one answer to the question
             gt_samples = self.load_gt_samples(sols_str_list, answer_type, starter_code, question_str)
-            if len(gt_samples) > 5:
-                gt_samples = gt_samples[:5]
+            if self.max_gt_per_task is not None and len(gt_samples) > self.max_gt_per_task:
+                gt_samples = gt_samples[:self.max_gt_per_task]
             all_samples += gt_samples 
             
             # Read all the solutions
            
-        print(f"Samples:\n{all_samples[:5]}")
+        print(f"Samples:\n{all_samples[:2]}")
         print(f"Loaded {len(all_samples)} samples from {self.dataroot}.")
         print(f"Skipped {len(skipped_problems)} problems from {self.dataroot}.")
         

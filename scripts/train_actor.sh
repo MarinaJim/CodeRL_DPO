@@ -12,22 +12,22 @@
 #SBATCH --cpus-per-task=16
 #
 # How much memory to request
-#SBATCH --mem=256GB
+#SBATCH --mem=1TB
 #
 # How many gpus to request
 #SBATCH --gres=gpu:2
 #
 # Limit runtime d-hh:mm:ss - here limited to 1min
-#SBATCH --time=0-23:00:00
+#SBATCH --time=3-00:00:00
 #
 # PARTITION to run in (athene-only people need to specify partition "gpu-athene" - otherwise the default "gpu" partition, which can only be used by UKP members, is selected leading to errors during job submission!)
-#SBATCH --partition=gpu-athene
+#SBATCH --partition=yolo
 
 # ACCOUNT to use (default account for athene-only people is "athene-researcher" and therefore does not need to be specified - check your accounts with command: "sshare -U")
-###SBATCH --account=gpu-large
+###SBATCH --account=athene-student
 #
 # QOS to use (default QOS for everyone is "gpu" and therefore does not need to be specified)
-###SBATCH --qos=gpu-large
+###SBATCH --qos=yolo
 #
 # Define standard output files - make sure those files exist
 #SBATCH --output=/storage/athene/work/sakharova/train_actor.output
@@ -40,13 +40,12 @@ module load cuda/12.2
 
 model=codet5-large-ntp-py
 tokenizer=Salesforce/codet5-large-ntp-py
-save_dir=codet5-large-ntp-py
+save_dir=codet5-large-ntp-py-10ep
 
 python train.py \
     --batch-size-per-replica 1 --grad-acc-steps 1 \
     --epochs 10 --lr 2e-5 \
-    --save-freq 1000 --save_total_limit 5 \
-    --fp16 \
+    --save-freq 1000 --save_total_limit 2 \
     --tuning_mode none \
     --save_dir $save_dir \
-    --tokenizer $tokenizer --model $model
+    --tokenizer $tokenizer --model $model \

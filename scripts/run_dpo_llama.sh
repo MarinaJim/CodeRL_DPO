@@ -34,12 +34,12 @@
 #SBATCH --error=/storage/athene/work/sakharova/sft_1ep_dpo_10ep_1000_2e-4_classic_AGAIN.error
 
 #module load cuda/12.2
-path_to_dataset=data/APPS/llama_dpo_1000.json
+path_to_dataset=data/APPS/llama_dpo_100.json
 model_path="exps/CodeLlama-13B-Python-hf-finetuned"
-output_dir="outputs/llama_dpo_models/sft_1ep_dpo_10ep_1000_2e-4_classic_AGAIN"
+output_dir="outputs/llama_dpo_models/sft_1ep_dpo_1ep_100"
 tokenizer_name="codellama/CodeLlama-13b-Python-hf"
 beta=0.1
-epochs=10
+epochs=1
 loss_type=sigmoid
 lr=2e-4
 

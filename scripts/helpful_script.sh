@@ -12,7 +12,7 @@
 #SBATCH --cpus-per-task=10
 #
 # How much memory to request
-#SBATCH --mem=4GB
+#SBATCH --mem=32GB
 #
 # How many gpus to request
 #SBATCH --gres=gpu:1
@@ -33,5 +33,6 @@
 #SBATCH --output=/storage/athene/work/sakharova/helpful_script.output
 #SBATCH --error=/storage/athene/work/sakharova/helpful_script.error
 
-python my_helpful_files/test_model_output.py
-exit 0
+
+
+python helpful_files/test.py

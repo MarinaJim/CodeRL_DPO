@@ -122,7 +122,7 @@ def main(args):
     print(args.tokenizer_name)
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     print("Loading model from {}...".format(args.model_name))
-    if "codet5" in args.model_name or "t5_dpo_models" in args.model_name:
+    if "codet5" in args.model_name or "t5_dpo_models" in args.model_name or "rl_models" in args.model_name:
         if args.critic_scores:
             model = T5ForConditionalGeneration.from_pretrained(args.model_name, tuning_mode='critic') 
         else:

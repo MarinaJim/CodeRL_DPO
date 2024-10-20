@@ -30,16 +30,16 @@
 ###SBATCH --qos=yolo
 #
 # Define standard output files - make sure those files exist
-#SBATCH --output=/storage/athene/work/sakharova/codet5-base-all-10ep.output
-#SBATCH --error=/storage/athene/work/sakharova/codet5-base-all-10ep.error
+#SBATCH --output=/storage/athene/work/sakharova/codet5-base-true.output
+#SBATCH --error=/storage/athene/work/sakharova/codet5-base-true.error
 
 module load cuda/12.2
 
 model=codet5-base
 #model_path=exps/coderl-codet5-funetuned-critic
 tokenizer=Salesforce/codet5-base
-save_dir=critic_models/codet5-base-all-10ep
-train_path=data/APPS/critic_train_all
+save_dir=critic_models/todelete
+train_path=data/APPS/critic_train_se_only
 include_gt=True
 python \
     train_orig.py \
